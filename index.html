@@ -104,9 +104,9 @@
   .qty-btn:hover { background: var(--primary); color: white; }
   .qty-display { font-weight: 600; min-width: 24px; text-align: center; }
 
-  .cart-fab { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--primary); color: white; border: none; border-radius: 50px; padding: 14px 20px; font-family: 'Sarabun', sans-serif; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 20px rgba(212,133,74,0.5); display: flex; align-items: center; gap: 8px; z-index: 200; transition: all 0.2s; }
-  .cart-fab:hover { background: var(--primary-dark); transform: scale(1.05); }
-  .cart-badge { background: white; color: var(--primary); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+  .cart-fab { background: var(--primary); color: white; border: none; border-radius: 50px; padding: 8px 14px; font-family: 'Sarabun', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(212,133,74,0.4); display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+  .cart-fab:hover { background: var(--primary-dark); }
+  .cart-badge { background: white; color: var(--primary); border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; }
 
   /* CART DRAWER */
   .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; }
@@ -214,8 +214,18 @@
 
   /* PRINT */
   @media print {
+    body * { visibility: hidden; }
+    #printBillArea, #printBillArea * { visibility: visible; }
+    #printBillArea { position: fixed; inset: 0; padding: 20px; background: white; font-size: 13px; font-family: 'Sarabun', sans-serif; }
     .nav, .sidebar, .cart-fab, .btn, .modal-overlay { display: none !important; }
   }
+  #printBillArea { display: none; }
+  .bill-header { text-align:center; padding-bottom:10px; border-bottom:2px dashed #333; margin-bottom:12px; }
+  .bill-title { font-size:18px; font-weight:700; font-family:'Mitr',sans-serif; }
+  .bill-sub { font-size:12px; color:#555; margin-top:2px; }
+  .bill-row { display:flex; justify-content:space-between; padding:3px 0; font-size:13px; }
+  .bill-total { display:flex; justify-content:space-between; padding:8px 0; font-size:16px; font-weight:700; border-top:2px dashed #333; margin-top:6px; }
+  .bill-footer { text-align:center; margin-top:12px; font-size:11px; color:#777; border-top:1px dashed #aaa; padding-top:8px; }
 
   /* OWNER CHART COLORS */
   .chart-bar { transition: opacity 0.2s; }
@@ -250,7 +260,14 @@
 <!-- ===== PAGE: LANDING ===== -->
 <div id="page-landing" class="page active" style="min-height:100vh;background:linear-gradient(135deg,var(--primary) 0%,#8B3A10 100%);align-items:center;justify-content:center;flex-direction:column;gap:2rem;padding:2rem;">
   <div style="text-align:center;color:white;">
-    <div style="font-size:5rem;margin-bottom:1rem;">🥐</div>
+    <div style="margin-bottom:1rem;">
+      <!-- เปลี่ยน src="" เป็น URL รูปภาพร้านได้เลย -->
+      <img id="shopLogo" src="" alt="แหม่มเบเกอรี่"
+        style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:4px solid rgba(255,255,255,0.5);display:none;"
+        onload="this.style.display='block';document.getElementById('shopLogoEmoji').style.display='none';"
+        onerror="this.style.display='none';document.getElementById('shopLogoEmoji').style.display='block';">
+      <div id="shopLogoEmoji" style="font-size:5rem;">🥐</div>
+    </div>
     <h1 style="font-family:'Mitr',sans-serif;font-size:2.5rem;margin-bottom:0.5rem;">แหม่มเบเกอรี่</h1>
     <p style="opacity:0.85;font-size:1.1rem;">จำหน่ายปลีก-ส่ง คู่ชาวทุ่งสงยาวนานกว่า 30 ปี</p>
   </div>
@@ -290,31 +307,40 @@
 
 <!-- ===== PAGE: CUSTOMER ===== -->
 <div id="page-customer" class="page">
+  <nav class="nav">
+    <div class="nav-brand">🥐 แหม่มเบเกอรี่</div>
+    <button class="cart-fab hidden" id="cartFab" onclick="openCart()">
+      🛒 ตะกร้า <div class="cart-badge" id="cartBadge">0</div>
+    </button>
+  </nav>
   <div class="hero">
     <div style="font-size:2rem;margin-bottom:0.5rem;">🥐</div>
-    <h1>ร้านเบเกอรี่</h1>
-    <p>สั่งขนมสดใหม่ ส่งถึงบ้าน</p>
+    <h1>แหม่มเบเกอรี่</h1>
+    <p>จำหน่ายปลีก-ส่ง คู่ชาวทุ่งสงยาวนานกว่า 30 ปี</p>
   </div>
 
   <div class="category-tabs" id="categoryTabs">
     <button class="cat-tab active" onclick="filterCategory('all', this)">ทั้งหมด</button>
-    <button class="cat-tab" onclick="filterCategory('filling', this)">🥐 ขนมปังไส้</button>
-    <button class="cat-tab" onclick="filterCategory('cake', this)">🎂 เค้ก</button>
-    <button class="cat-tab" onclick="filterCategory('piah', this)">🌸 เปี๊ยะ</button>
-    <button class="cat-tab" onclick="filterCategory('donut', this)">🍩 โดนัท</button>
-    <button class="cat-tab" onclick="filterCategory('thai', this)">🍘 ขนมไทย</button>
-    <button class="cat-tab" onclick="filterCategory('bread', this)">🍞 ปังกรอบ</button>
-    <button class="cat-tab" onclick="filterCategory('pie', this)">🥧 พาย</button>
+    <button class="cat-tab" onclick="filterCategory('4', this)">ขนาด (5บ)</button>
+    <button class="cat-tab" onclick="filterCategory('8', this)">ขนาด (10บ)</button>
+    <button class="cat-tab" onclick="filterCategory('12', this)">ขนาด (15บ)</button>
+    <button class="cat-tab" onclick="filterCategory('18', this)">ขนาด (20บ)</button>
+    <button class="cat-tab" onclick="filterCategory('21', this)">ขนาด (25บ)</button>
+    <button class="cat-tab" onclick="filterCategory('25', this)">ขนาด (30บ)</button>
+    <button class="cat-tab" onclick="filterCategory('30', this)">ขนาด (35บ)</button>
+    <button class="cat-tab" onclick="filterCategory('40', this)">ขนาด (50บ)</button>
+    <button class="cat-tab" onclick="filterCategory('48', this)">ขนาด (55บ)</button>
+    <button class="cat-tab" onclick="filterCategory('52', this)">ขนาด (60บ)</button>
+    <button class="cat-tab" onclick="filterCategory('80', this)">ขนาด (100บ)</button>
   </div>
 
   <div class="container">
+    <div style="position:relative;margin-bottom:1rem;">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);">🔍</span>
+      <input id="customerSearch" class="form-control" style="padding-left:38px;" placeholder="ค้นหาสินค้า เช่น เนยสด, เผือก, เค้ก..." oninput="renderProducts(currentCatFilter)">
+    </div>
     <div class="product-grid" id="productGrid"></div>
   </div>
-
-  <button class="cart-fab hidden" id="cartFab" onclick="openCart()">
-    🛒 ดูตะกร้า
-    <div class="cart-badge" id="cartBadge">0</div>
-  </button>
 
   <!-- Cart Drawer -->
   <div class="drawer-overlay" id="cartOverlay" onclick="closeCart()"></div>
@@ -398,8 +424,8 @@
         <div id="slipGroup" class="hidden">
           <div style="background:var(--bg);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1rem;font-size:0.88rem;">
             <strong>ธนาคารกสิกรไทย</strong><br>
-            เลขบัญชี: 123-4-56789-0<br>
-            ชื่อบัญชี: ร้านเบเกอรี่ อโรม่า
+            เลขบัญชีพร้อมเพย์: 089-473-6141<br>
+            ชื่อบัญชี: นางศิวพร เรอุไร
           </div>
           <div class="form-group">
             <label class="form-label">อัพโหลดสลิปโอนเงิน *</label>
@@ -641,6 +667,7 @@
   <nav class="nav">
     <div class="nav-brand">🚚 แอปส่งของ</div>
     <div style="display:flex;align-items:center;gap:8px;">
+      <span id="offlineBadge" style="font-size:0.72rem;font-weight:600;color:var(--success);">🟢 Online</span>
       <span style="font-size:0.85rem;color:var(--text-muted);" id="riderUserLabel"></span>
       <button class="btn btn-secondary btn-sm" onclick="doLogout()">ออก</button>
     </div>
@@ -949,10 +976,24 @@ function doLogout() {
 // =========================================
 // CUSTOMER - PRODUCT LISTING
 // =========================================
+let currentCatFilter = 'all';
+
 function renderProducts(catFilter = null) {
+  if (catFilter !== null) currentCatFilter = catFilter;
   const grid = document.getElementById('productGrid');
+  const searchVal = (document.getElementById('customerSearch')?.value || '').toLowerCase().trim();
   let products = DB.products.filter(p => p.status === 'active');
-  if (catFilter && catFilter !== 'all') products = products.filter(p => p.category === catFilter);
+  // กรองตามกลุ่มราคา (tab value = price string)
+  if (currentCatFilter && currentCatFilter !== 'all') {
+    const targetPrice = parseInt(currentCatFilter);
+    products = products.filter(p => p.price === targetPrice);
+  }
+  // กรองตาม search
+  if (searchVal) products = products.filter(p => p.name.toLowerCase().includes(searchVal));
+  if (products.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem 0;color:var(--text-muted);font-size:1rem;">🔍 ไม่พบสินค้าที่ค้นหา</div>`;
+    return;
+  }
   grid.innerHTML = products.map(p => {
     const qty = cart[p.id]?.qty || 0;
     return `<div class="product-card">
@@ -962,7 +1003,7 @@ function renderProducts(catFilter = null) {
         <div class="product-price">฿${p.price}</div>
         <div class="product-qty">
           <button class="qty-btn" onclick="updateCart('${p.id}', -1, '${p.name}', ${p.price}, '${p.emoji}')">−</button>
-          <span class="qty-display">${qty}</span>
+          <span class="qty-display" id="qdisp_${p.id}">${qty}</span>
           <button class="qty-btn" onclick="updateCart('${p.id}', 1, '${p.name}', ${p.price}, '${p.emoji}')">+</button>
         </div>
       </div>
@@ -973,6 +1014,7 @@ function renderProducts(catFilter = null) {
 function filterCategory(cat, el) {
   document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+  currentCatFilter = cat;
   renderProducts(cat);
 }
 
@@ -1528,10 +1570,17 @@ function renderRiderPage() {
         <div class="item-row text-muted"><span>ค่าส่ง</span><span>฿50</span></div>
         <div class="item-row fw-bold"><span>ยอดรวม</span><span class="text-primary">฿${o.total.toLocaleString()}</span></div>
       </div>
+      <div class="form-group" style="margin:0.75rem 0 0.5rem;">
+        <label class="form-label">💳 วิธีชำระเงิน</label>
+        <select class="form-control" id="riderPayMethod_${o.id}">
+          <option value="cash" ${(o.payMethod||'cash')==='cash'?'selected':''}>💵 เงินสด</option>
+          <option value="transfer" ${o.payMethod==='transfer'?'selected':''}>🏦 โอนเงิน</option>
+        </select>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary btn-sm" onclick="openDeliveryModal('${o.id}')">📋 จัดการรายการ</button>
-        <button class="btn btn-success btn-sm" onclick="completeDelivery('${o.id}')">✓ ส่งสำเร็จ</button>
-        <button class="btn btn-secondary btn-sm" onclick="showToast('กำลังสร้าง Invoice PDF...', 'success')">🧾 Invoice</button>
+        <button class="btn btn-secondary btn-sm" onclick="printBill('${o.id}')">🖨️ พิมพ์บิล</button>
+        <button class="btn btn-primary btn-sm" onclick="openDeliveryModal('${o.id}')">📋 แก้ไขรายการ</button>
+        <button class="btn btn-success btn-sm" onclick="completeDeliveryWithPayment('${o.id}')">✓ ส่งสำเร็จ</button>
       </div>
     </div>
   `).join('');
@@ -1727,7 +1776,146 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// =========================================
+// ข้อ 2: PRINT BILL
+// =========================================
+function printBill(orderId) {
+  const order = DB.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const deliveryFee = order.deliveryMethod === 'delivery' ? 50 : 0;
+  const payEl = document.getElementById('riderPayMethod_' + orderId);
+  const payMethod = payEl ? payEl.value : (order.payMethod || 'cash');
+  const payLabel = payMethod === 'cash' ? '💵 เงินสด' : '🏦 โอนเงิน';
+  const now = new Date().toLocaleString('th-TH');
+  const itemsHtml = order.items.filter(i => i.qty > 0)
+    .map(i => `<div class="bill-row"><span>${i.name} ×${i.qty}</span><span>฿${(i.price*i.qty).toLocaleString()}</span></div>`).join('');
+  document.getElementById('printBillArea').innerHTML = `
+    <div class="bill-header">
+      <div class="bill-title">🥐 ร้านแหม่มเบเกอรี่</div>
+      <div class="bill-sub">จำหน่ายปลีก-ส่ง คู่ชาวทุ่งสง</div>
+      <div class="bill-sub">วันที่: ${now}</div>
+    </div>
+    <div class="bill-row"><span>เลขที่บิล</span><span>${order.id}</span></div>
+    <div class="bill-row"><span>ลูกค้า</span><span>${order.customer}</span></div>
+    <div class="bill-row"><span>โทร</span><span>${order.phone}</span></div>
+    ${order.address ? `<div class="bill-row"><span>ที่อยู่</span><span style="max-width:55%;text-align:right;">${order.address}</span></div>` : ''}
+    <hr style="border:none;border-top:1px dashed #aaa;margin:8px 0;">
+    ${itemsHtml}
+    ${deliveryFee > 0 ? `<div class="bill-row text-muted"><span>ค่าจัดส่ง</span><span>฿50</span></div>` : ''}
+    <div class="bill-total"><span>ยอดรวม</span><span>฿${order.total.toLocaleString()}</span></div>
+    <div class="bill-row"><span>ชำระโดย</span><span>${payLabel}</span></div>
+    <div class="bill-footer">ขอบคุณที่ใช้บริการ 🙏<br>แหม่มเบเกอรี่</div>
+  `;
+  document.getElementById('printBillArea').style.display = 'block';
+  setTimeout(() => { window.print(); document.getElementById('printBillArea').style.display = 'none'; }, 100);
+}
+
+// =========================================
+// ข้อ 3: RIDER — ส่งสำเร็จพร้อมบันทึกวิธีชำระ
+// =========================================
+function completeDeliveryWithPayment(orderId) {
+  const order = DB.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const payEl = document.getElementById('riderPayMethod_' + orderId);
+  const payMethod = payEl ? payEl.value : 'cash';
+  order.payMethod = payMethod;
+  order.status = 'delivered';
+
+  const payload = {
+    action: 'updateDelivery',
+    token: currentUser?.token || '',
+    orderId,
+    status: 'delivered',
+    items: order.items,
+    paymentMethod: payMethod,
+  };
+
+  fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(res => {
+      const label = payMethod === 'cash' ? '💵 เงินสด' : '🏦 โอนเงิน';
+      if (res.success) {
+        showToast(`✅ ส่งสำเร็จ — ${label}`, 'success');
+        syncOfflineQueue();
+      } else {
+        showToast(`⚠️ บันทึกไม่สำเร็จ: ${res.error}`, 'error');
+      }
+    })
+    .catch(() => {
+      queueOffline(payload);
+      showToast('📴 Offline — บันทึกไว้ จะ sync เมื่อมีเน็ต', 'warning');
+    });
+
+  renderRiderPage();
+  closeModal('deliveryModal');
+}
+
+// =========================================
+// ข้อ 4: OFFLINE MODE
+// =========================================
+const OFFLINE_KEY = 'mammil_offline_queue';
+
+function queueOffline(payload) {
+  try {
+    const q = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]');
+    q.push({ ...payload, queuedAt: new Date().toISOString() });
+    localStorage.setItem(OFFLINE_KEY, JSON.stringify(q));
+    updateOfflineBadge();
+  } catch(e) {}
+}
+
+function syncOfflineQueue() {
+  try {
+    const q = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]');
+    if (q.length === 0) return;
+    const remaining = [];
+    let synced = 0;
+    Promise.all(q.map(payload =>
+      fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
+        .then(r => r.json())
+        .then(res => { if (res.success) synced++; else remaining.push(payload); })
+        .catch(() => remaining.push(payload))
+    )).then(() => {
+      localStorage.setItem(OFFLINE_KEY, JSON.stringify(remaining));
+      updateOfflineBadge();
+      if (synced > 0) showToast(`🔄 Sync สำเร็จ ${synced} รายการ`, 'success');
+    });
+  } catch(e) {}
+}
+
+function updateOfflineBadge() {
+  const badge = document.getElementById('offlineBadge');
+  if (!badge) return;
+  try {
+    const q = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]');
+    if (q.length > 0) {
+      badge.textContent = `📴 รอ sync ${q.length} รายการ`;
+      badge.style.color = 'var(--warning)';
+    } else {
+      badge.textContent = '🟢 Online';
+      badge.style.color = 'var(--success)';
+    }
+  } catch(e) {}
+}
+
+window.addEventListener('online', () => {
+  showToast('🟢 กลับมา Online — กำลัง sync...', 'success');
+  syncOfflineQueue();
+  updateOfflineBadge();
+});
+window.addEventListener('offline', () => {
+  showToast('📴 ไม่มีอินเตอร์เน็ต — โหมด Offline', 'warning');
+  updateOfflineBadge();
+});
+
+// sync ทันทีเมื่อโหลด (ถ้าออนไลน์)
+if (navigator.onLine) syncOfflineQueue();
+updateOfflineBadge();
 </script>
+
+<!-- พื้นที่สำหรับพิมพ์บิล (ซ่อนไว้) -->
+<div id="printBillArea"></div>
 </body>
 </html>
 
