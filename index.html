@@ -1191,24 +1191,22 @@ function placeOrder() {
   showToast('สั่งซื้อสำเร็จ! 🎉', 'success');
   goTo('page-success');
 
-  // ส่งข้อมูลไป Google Sheets จริง
-  const payload = {
+  // ส่งข้อมูลไป Google Sheets จริง (ใช้ GET เพื่อหลีกเลี่ยง CORS preflight)
+  const orderItems = items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price }));
+  const params = new URLSearchParams({
     action: 'createOrder',
     customerName: name,
     customerPhone: phone,
-    items: items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
+    items: JSON.stringify(orderItems),
     total,
     deliveryDate: date,
     deliveryMethod: method,
-    address: document.getElementById('deliveryAddress')?.value.trim() || '',
-    note: document.getElementById('custNote')?.value.trim() || '',
+    address: order.address || '',
+    note: order.note || '',
     paymentMethod: payMethod,
-  };
+  });
 
-  fetch(GAS_URL, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  fetch(`${GAS_URL}?${params}`)
   .then(r => r.json())
   .then(res => {
     if (res.success) {
