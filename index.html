@@ -945,7 +945,7 @@ function goTo(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const pg = document.getElementById(pageId);
   if (pg) { pg.classList.add('active'); pg.scrollTop = 0; }
-  if (pageId === 'page-admin') renderAdminDashboard();
+  if (pageId === 'page-admin') { renderAdminDashboard(); loadOrders(); }
   if (pageId === 'page-rider') renderRiderPage();
   if (pageId === 'page-owner') renderOwnerPage();
   if (pageId === 'page-customer') renderProducts();
@@ -1191,22 +1191,24 @@ function placeOrder() {
   showToast('สั่งซื้อสำเร็จ! 🎉', 'success');
   goTo('page-success');
 
-  // ส่งข้อมูลไป Google Sheets จริง (ใช้ GET เพื่อหลีกเลี่ยง CORS preflight)
-  const orderItems = items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price }));
-  const params = new URLSearchParams({
+  // ส่งข้อมูลไป Google Sheets จริง
+  const payload = {
     action: 'createOrder',
     customerName: name,
     customerPhone: phone,
-    items: JSON.stringify(orderItems),
+    items: items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
     total,
     deliveryDate: date,
     deliveryMethod: method,
-    address: order.address || '',
-    note: order.note || '',
+    address: document.getElementById('deliveryAddress')?.value.trim() || '',
+    note: document.getElementById('custNote')?.value.trim() || '',
     paymentMethod: payMethod,
-  });
+  };
 
-  fetch(`${GAS_URL}?${params}`)
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
   .then(r => r.json())
   .then(res => {
     if (res.success) {
@@ -1227,7 +1229,7 @@ function adminTab(tab, el) {
   document.getElementById('admin-' + tab).classList.remove('hidden');
   document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
   if (el) el.classList.add('active');
-  if (tab === 'orders') renderOrders();
+  if (tab === 'orders') loadOrders();
   if (tab === 'products') renderProducts_admin();
   if (tab === 'production') renderProduction();
   if (tab === 'delivery-assign') renderAssign();
@@ -1305,6 +1307,39 @@ function renderWeeklyChart() {
 }
 
 // ORDERS
+function loadOrders() {
+  if (!currentUser?.token) return;
+  const url = `${GAS_URL}?action=getOrders&token=${encodeURIComponent(currentUser.token)}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showToast('โหลดออเดอร์ไม่สำเร็จ: ' + data.error, 'error'); return; }
+      // แปลง field จาก GAS ให้ตรงกับที่ render ใช้
+      DB.orders = data.map(o => ({
+        id: o.id,
+        customer: o.customerName,
+        phone: o.customerPhone,
+        total: parseFloat(o.total) || 0,
+        status: o.status,
+        payMethod: o.paymentMethod,
+        deliveryDate: o.deliveryDate,
+        deliveryMethod: o.deliveryMethod,
+        address: o.address,
+        note: o.note,
+        createdAt: o.createdAt,
+        items: Array.isArray(o.items) ? o.items.map(i => ({
+          id: i.productId || i.id,
+          name: i.productName || i.name,
+          qty: parseInt(i.quantity || i.qty) || 0,
+          price: parseFloat(i.unitPrice || i.price) || 0,
+        })) : [],
+      }));
+      renderOrders();
+      renderAdminDashboard();
+    })
+    .catch(err => showToast('โหลดออเดอร์ล้มเหลว', 'error'));
+}
+
 function renderOrders() {
   const search = (document.getElementById('orderSearch')?.value || '').toLowerCase();
   const filter = document.getElementById('orderFilter')?.value || '';
