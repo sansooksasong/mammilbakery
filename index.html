@@ -288,19 +288,13 @@
     </div>
     <div class="form-group">
       <label class="form-label">ชื่อผู้ใช้</label>
-      <input class="form-control" id="loginUser" placeholder="กรอกชื่อผู้ใช้" value="admin">
+      <input class="form-control" id="loginUser" placeholder="กรอกชื่อผู้ใช้">
     </div>
     <div class="form-group">
       <label class="form-label">รหัสผ่าน</label>
-      <input class="form-control" id="loginPass" type="password" placeholder="กรอกรหัสผ่าน" value="1234">
+      <input class="form-control" id="loginPass" type="password" placeholder="กรอกรหัสผ่าน">
     </div>
     <button class="btn btn-primary btn-block btn-lg" onclick="doLogin()" style="border-radius:50px;margin-top:0.5rem;">เข้าสู่ระบบ</button>
-    <div style="margin-top:1rem;padding:1rem;background:var(--bg);border-radius:var(--radius-sm);font-size:0.8rem;color:var(--text-muted);">
-      <strong>บัญชีทดสอบ:</strong><br>
-      admin / 1234 → ผู้ดูแลระบบ<br>
-      rider / 1234 → พนักงานส่ง<br>
-      owner / 1234 → เจ้าของร้าน
-    </div>
     <button class="btn btn-secondary btn-block" onclick="goTo('page-landing')" style="margin-top:1rem;">← กลับหน้าหลัก</button>
   </div>
 </div>
@@ -933,11 +927,7 @@ const DB = {
     { id: 'G01', name: 'พายเม็ดมะม่วง (35)', category: 'pie', price: 30, stock: 99, emoji: '🥧', desc: 'พายเม็ดมะม่วงอร่อยหอม', status: 'active' },
   ],
   orders: [], // โหลดจาก Google Sheets จริง
-  users: [
-    { username: 'admin', password: '1234', role: 'admin', name: 'ผู้ดูแลระบบ' },
-    { username: 'rider', password: '1234', role: 'rider', name: 'ไปรษณีย์ รวดเร็ว' },
-    { username: 'owner', password: '1234', role: 'owner', name: 'เจ้าของร้าน' },
-  ],
+  users: [], // โหลดจาก Google Sheets จริง (ไม่มี mock)
   deliveries: [] // auto-filled from orders with delivery method
 };
 
@@ -973,10 +963,9 @@ function doLogin() {
   const loginBtn = document.querySelector('#page-login .btn-primary');
   if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = 'กำลังเข้าสู่ระบบ...'; }
 
-  fetch(GAS_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'login', username: u, password: p }),
-  })
+  // ใช้ GET + query params เพื่อหลีกเลี่ยง CORS preflight ของ GAS
+  const url = `${GAS_URL}?action=login&username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`;
+  fetch(url)
   .then(r => r.json())
   .then(res => {
     if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'เข้าสู่ระบบ'; }
@@ -994,24 +983,14 @@ function doLogin() {
       goTo('page-rider');
     } else if (res.role === 'owner') {
       goTo('page-owner');
+    } else {
+      showToast('ไม่พบสิทธิ์การเข้าถึง: ' + res.role, 'error');
     }
   })
-  .catch(() => {
+  .catch(err => {
     if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'เข้าสู่ระบบ'; }
-    // Fallback: ลอง mock data เผื่อ offline
-    const user = DB.users.find(x => x.username === u && String(x.password) === String(p));
-    if (!user) { showToast('ไม่สามารถเชื่อมต่อได้ และไม่พบบัญชีในโหมด Offline', 'error'); return; }
-    currentUser = user;
-    showToast(`[Offline] ยินดีต้อนรับ ${user.name}!`, 'success');
-    if (user.role === 'admin') {
-      document.getElementById('adminUserLabel').textContent = `👤 ${user.name}`;
-      goTo('page-admin');
-    } else if (user.role === 'rider') {
-      document.getElementById('riderUserLabel').textContent = `👤 ${user.name}`;
-      goTo('page-rider');
-    } else if (user.role === 'owner') {
-      goTo('page-owner');
-    }
+    showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่', 'error');
+    console.error('Login error:', err);
   });
 }
 
