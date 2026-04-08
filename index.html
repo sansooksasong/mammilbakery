@@ -381,7 +381,7 @@
           <label class="form-label">วิธีรับสินค้า *</label>
           <select class="form-control" id="deliveryMethod" onchange="toggleAddress()">
             <option value="">-- เลือกวิธีรับ --</option>
-            <option value="delivery">🚚 จัดส่งถึงบ้าน (+฿50)</option>
+            <option value="delivery">🚚 จัดส่งถึงบ้าน (ฟรี)</option>
             <option value="pickup">🏪 รับที่ร้าน (ฟรี)</option>
           </select>
         </div>
@@ -513,10 +513,10 @@
           <span style="font-size:0.85rem;color:var(--text-muted);">วันนี้</span>
         </div>
         <div class="stat-cards">
-          <div class="stat-card"><div class="stat-label">ออเดอร์วันนี้</div><div class="stat-value text-primary">24</div><div class="stat-sub">+3 จากเมื่อวาน</div></div>
-          <div class="stat-card"><div class="stat-label">รายได้วันนี้</div><div class="stat-value" style="color:var(--success);">฿8,420</div><div class="stat-sub">+฿1,200 จากเมื่อวาน</div></div>
-          <div class="stat-card"><div class="stat-label">รอตรวจสอบ</div><div class="stat-value" style="color:var(--warning);">5</div><div class="stat-sub">สลิปรอยืนยัน</div></div>
-          <div class="stat-card"><div class="stat-label">ส่งวันนี้</div><div class="stat-value" style="color:var(--info);">8</div><div class="stat-sub">2 เสร็จแล้ว</div></div>
+          <div class="stat-card"><div class="stat-label">ออเดอร์วันนี้</div><div class="stat-value text-primary" id="dashTodayOrders">—</div><div class="stat-sub" id="dashTodayOrdersSub"></div></div>
+          <div class="stat-card"><div class="stat-label">รายได้วันนี้</div><div class="stat-value" style="color:var(--success);" id="dashTodayRevenue">—</div><div class="stat-sub" id="dashTodayRevenueSub"></div></div>
+          <div class="stat-card"><div class="stat-label">รอตรวจสอบ</div><div class="stat-value" style="color:var(--warning);" id="dashPending">—</div><div class="stat-sub">สลิปรอยืนยัน</div></div>
+          <div class="stat-card"><div class="stat-label">ส่งวันนี้</div><div class="stat-value" style="color:var(--info);" id="dashDelivery">—</div><div class="stat-sub" id="dashDeliverySub"></div></div>
         </div>
 
         <div class="grid-2">
@@ -647,10 +647,10 @@
           </select>
         </div>
         <div class="stat-cards mb-2">
-          <div class="stat-card"><div class="stat-label">รายได้รวม</div><div class="stat-value" style="color:var(--success);">฿142,800</div></div>
-          <div class="stat-card"><div class="stat-label">ออเดอร์ทั้งหมด</div><div class="stat-value text-primary">384</div></div>
-          <div class="stat-card"><div class="stat-label">ลูกค้าใหม่</div><div class="stat-value" style="color:var(--info);">96</div></div>
-          <div class="stat-card"><div class="stat-label">มูลค่าเฉลี่ย</div><div class="stat-value" style="color:var(--warning);">฿372</div></div>
+          <div class="stat-card"><div class="stat-label">รายได้รวม</div><div class="stat-value" style="color:var(--success);" id="reportTotalRevenue">—</div></div>
+          <div class="stat-card"><div class="stat-label">ออเดอร์ทั้งหมด</div><div class="stat-value text-primary" id="reportTotalOrders">—</div></div>
+          <div class="stat-card"><div class="stat-label">ลูกค้าใหม่</div><div class="stat-value" style="color:var(--info);" id="reportNewCustomers">—</div></div>
+          <div class="stat-card"><div class="stat-label">มูลค่าเฉลี่ย</div><div class="stat-value" style="color:var(--warning);" id="reportAvgOrder">—</div></div>
         </div>
         <div class="card">
           <div class="card-header">📊 กราฟยอดขาย</div>
@@ -673,8 +673,31 @@
     </div>
   </nav>
   <div class="container" style="max-width:640px;">
+
+    <!-- Date selector -->
+    <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:1rem;margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+        <span style="font-size:1rem;">📅</span>
+        <span style="font-weight:600;font-family:'Mitr',sans-serif;">เลือกวันนัดส่ง</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="date" id="riderDateFilter" class="form-control" style="flex:1;min-width:160px;" onchange="renderRiderPage()">
+        <button class="btn btn-secondary btn-sm" onclick="setRiderDate(0)">วันนี้</button>
+        <button class="btn btn-secondary btn-sm" onclick="setRiderDate(1)">พรุ่งนี้</button>
+        <button class="btn btn-secondary btn-sm" onclick="setRiderDate(2)">มะรืน</button>
+      </div>
+      <!-- สรุปเส้นทาง -->
+      <div id="routeSummary" style="margin-top:0.75rem;display:none;padding:0.75rem;background:var(--primary-light);border-radius:var(--radius-sm);">
+        <div style="font-weight:600;color:var(--primary-dark);margin-bottom:4px;">📍 สรุปเส้นทางวันที่ <span id="routeDate"></span></div>
+        <div style="font-size:0.88rem;color:var(--text-muted);">
+          รายการส่ง: <strong id="routeCount">0</strong> จุด &nbsp;|&nbsp;
+          ยอดรวม: <strong id="routeTotal" class="text-primary">฿0</strong>
+        </div>
+      </div>
+    </div>
+
     <div class="section-header">
-      <h2 class="section-title">📦 รายการส่งของวันนี้</h2>
+      <h2 class="section-title">📦 รายการส่งของ</h2>
       <span class="chip" id="riderDeliveryCount">0 รายการ</span>
     </div>
     <div id="riderDeliveryList"></div>
@@ -695,10 +718,10 @@
       </select>
     </div>
     <div class="stat-cards mb-3">
-      <div class="stat-card"><div class="stat-label">รายได้รวม</div><div class="stat-value" style="color:var(--success);">฿348,200</div><div class="stat-sub">↑ 18% จากเดือนก่อน</div></div>
-      <div class="stat-card"><div class="stat-label">ออเดอร์</div><div class="stat-value text-primary">924</div><div class="stat-sub">↑ 12% จากเดือนก่อน</div></div>
-      <div class="stat-card"><div class="stat-label">ลูกค้าทั้งหมด</div><div class="stat-value" style="color:var(--info);">312</div><div class="stat-sub">↑ 8% ลูกค้าใหม่</div></div>
-      <div class="stat-card"><div class="stat-label">กำไรสุทธิ</div><div class="stat-value" style="color:var(--warning);">฿104,460</div><div class="stat-sub">อัตรา 30%</div></div>
+      <div class="stat-card"><div class="stat-label">รายได้รวม</div><div class="stat-value" style="color:var(--success);" id="ownerTotalRevenue">—</div><div class="stat-sub" id="ownerRevenueSub"></div></div>
+      <div class="stat-card"><div class="stat-label">ออเดอร์</div><div class="stat-value text-primary" id="ownerTotalOrders">—</div><div class="stat-sub" id="ownerOrdersSub"></div></div>
+      <div class="stat-card"><div class="stat-label">ลูกค้าทั้งหมด</div><div class="stat-value" style="color:var(--info);" id="ownerTotalCustomers">—</div><div class="stat-sub"></div></div>
+      <div class="stat-card"><div class="stat-label">มูลค่าเฉลี่ย/ออเดอร์</div><div class="stat-value" style="color:var(--warning);" id="ownerAvgOrder">—</div><div class="stat-sub"></div></div>
     </div>
     <div class="grid-2 mb-3">
       <div class="card">
@@ -909,14 +932,7 @@ const DB = {
     { id: 'E01', name: 'พายสับปะรด (25)', category: 'pie', price: 21, stock: 99, emoji: '🥧', desc: 'พายสับปะรดหอมหวาน', status: 'active' },
     { id: 'G01', name: 'พายเม็ดมะม่วง (35)', category: 'pie', price: 30, stock: 99, emoji: '🥧', desc: 'พายเม็ดมะม่วงอร่อยหอม', status: 'active' },
   ],
-  orders: [
-    { id: 'ORD-2024-001', customer: 'สมหญิง ใจดี', phone: '089-123-4567', items: [{id:'P001',name:'ครัวซองต์เนย',qty:3,price:55},{id:'P003',name:'ขนมปังกระเทียม',qty:2,price:45}], total: 255, status: 'pending', payMethod: 'transfer', deliveryDate: '2024-12-20', deliveryMethod: 'delivery', address: '123 ถ.สุขุมวิท กทม.', note: '', createdAt: '2024-12-18 09:30', slipUrl: '' },
-    { id: 'ORD-2024-002', customer: 'วิชัย มั่งมี', phone: '081-234-5678', items: [{id:'P002',name:'เค้กช็อกโกแลต',qty:1,price:320}], total: 320, status: 'paid', payMethod: 'transfer', deliveryDate: '2024-12-20', deliveryMethod: 'pickup', address: '', note: 'เขียนชื่อว่า "Happy Birthday"', createdAt: '2024-12-18 10:15', slipUrl: '' },
-    { id: 'ORD-2024-003', customer: 'นิดา สวยงาม', phone: '086-345-6789', items: [{id:'P004',name:'มาการอง',qty:12,price:35},{id:'P006',name:'ชาดำร้อน',qty:2,price:65}], total: 550, status: 'production', payMethod: 'cash', deliveryDate: '2024-12-21', deliveryMethod: 'delivery', address: '456 ถ.พระราม9', note: '', createdAt: '2024-12-18 11:00', slipUrl: '' },
-    { id: 'ORD-2024-004', customer: 'ประยุทธ์ เก่งมาก', phone: '082-456-7890', items: [{id:'P007',name:'เค้กแครอท',qty:1,price:280},{id:'P008',name:'บราวนี่',qty:4,price:60}], total: 520, status: 'ready', payMethod: 'transfer', deliveryDate: '2024-12-19', deliveryMethod: 'delivery', address: '789 ถ.รัชดา', note: '', createdAt: '2024-12-17 14:30', slipUrl: '' },
-    { id: 'ORD-2024-005', customer: 'แสงเดือน หัวใจดี', phone: '083-567-8901', items: [{id:'P005',name:'ทาร์ตไข่',qty:6,price:40},{id:'P001',name:'ครัวซองต์เนย',qty:4,price:55}], total: 460, status: 'delivered', payMethod: 'transfer', deliveryDate: '2024-12-18', deliveryMethod: 'delivery', address: '321 ถ.ลาดพร้าว', note: '', createdAt: '2024-12-16 09:00', slipUrl: '' },
-    { id: 'ORD-2024-006', customer: 'ทวีศักดิ์ มือดี', phone: '084-678-9012', items: [{id:'P009',name:'ขนมปังสาน',qty:2,price:85}], total: 170, status: 'pending', payMethod: 'cash', deliveryDate: '2024-12-22', deliveryMethod: 'pickup', address: '', note: '', createdAt: '2024-12-18 13:00', slipUrl: '' },
-  ],
+  orders: [], // โหลดจาก Google Sheets จริง
   users: [
     { username: 'admin', password: '1234', role: 'admin', name: 'ผู้ดูแลระบบ' },
     { username: 'rider', password: '1234', role: 'rider', name: 'ไปรษณีย์ รวดเร็ว' },
@@ -952,19 +968,51 @@ function goTo(pageId) {
 function doLogin() {
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value.trim();
-  const user = DB.users.find(x => x.username === u && x.password === p);
-  if (!user) { showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error'); return; }
-  currentUser = user;
-  showToast(`ยินดีต้อนรับ ${user.name}! 🎉`, 'success');
-  if (user.role === 'admin') {
-    document.getElementById('adminUserLabel').textContent = `👤 ${user.name}`;
-    goTo('page-admin');
-  } else if (user.role === 'rider') {
-    document.getElementById('riderUserLabel').textContent = `👤 ${user.name}`;
-    goTo('page-rider');
-  } else if (user.role === 'owner') {
-    goTo('page-owner');
-  }
+  if (!u || !p) { showToast('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', 'error'); return; }
+
+  const loginBtn = document.querySelector('#page-login .btn-primary');
+  if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = 'กำลังเข้าสู่ระบบ...'; }
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'login', username: u, password: p }),
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'เข้าสู่ระบบ'; }
+    if (!res.success) {
+      showToast(res.error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error');
+      return;
+    }
+    currentUser = { username: res.username, role: res.role, name: res.name, token: res.token };
+    showToast(`ยินดีต้อนรับ ${res.name}! 🎉`, 'success');
+    if (res.role === 'admin') {
+      document.getElementById('adminUserLabel').textContent = `👤 ${res.name}`;
+      goTo('page-admin');
+    } else if (res.role === 'rider') {
+      document.getElementById('riderUserLabel').textContent = `👤 ${res.name}`;
+      goTo('page-rider');
+    } else if (res.role === 'owner') {
+      goTo('page-owner');
+    }
+  })
+  .catch(() => {
+    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'เข้าสู่ระบบ'; }
+    // Fallback: ลอง mock data เผื่อ offline
+    const user = DB.users.find(x => x.username === u && String(x.password) === String(p));
+    if (!user) { showToast('ไม่สามารถเชื่อมต่อได้ และไม่พบบัญชีในโหมด Offline', 'error'); return; }
+    currentUser = user;
+    showToast(`[Offline] ยินดีต้อนรับ ${user.name}!`, 'success');
+    if (user.role === 'admin') {
+      document.getElementById('adminUserLabel').textContent = `👤 ${user.name}`;
+      goTo('page-admin');
+    } else if (user.role === 'rider') {
+      document.getElementById('riderUserLabel').textContent = `👤 ${user.name}`;
+      goTo('page-rider');
+    } else if (user.role === 'owner') {
+      goTo('page-owner');
+    }
+  });
 }
 
 function doLogout() {
@@ -1113,8 +1161,6 @@ function toggleSlip() {
 function updateCheckoutTotal() {
   const items = Object.values(cart);
   let total = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const method = document.getElementById('deliveryMethod').value;
-  if (method === 'delivery') total += 50;
   document.getElementById('checkoutTotal').textContent = `฿${total.toLocaleString()}`;
 }
 
@@ -1147,7 +1193,6 @@ function placeOrder() {
 
   const items = Object.values(cart).map(i => ({...i}));
   let total = items.reduce((s, i) => s + i.price * i.qty, 0);
-  if (method === 'delivery') total += 50;
 
   const orderId = 'ORD-' + Date.now().toString().slice(-6);
   const order = {
@@ -1215,25 +1260,46 @@ function adminTab(tab, el) {
 }
 
 function renderAdminDashboard() {
+  // คำนวณสถิติจาก DB.orders จริง
+  const today = new Date().toLocaleDateString('th-TH');
+  const todayOrders = DB.orders.filter(o => {
+    const d = new Date(o.createdAt).toLocaleDateString('th-TH');
+    return d === today;
+  });
+  const todayRevenue = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
+  const pendingSlip = DB.orders.filter(o => o.status === 'pending' && o.payMethod === 'transfer').length;
+  const todayDelivery = DB.orders.filter(o => o.deliveryMethod === 'delivery' && ['ready','paid','production','delivered'].includes(o.status));
+  const deliveredToday = todayDelivery.filter(o => o.status === 'delivered').length;
+
+  document.getElementById('dashTodayOrders').textContent = todayOrders.length;
+  document.getElementById('dashTodayRevenue').textContent = '฿' + todayRevenue.toLocaleString();
+  document.getElementById('dashPending').textContent = pendingSlip;
+  document.getElementById('dashDelivery').textContent = todayDelivery.length;
+  document.getElementById('dashDeliverySub').textContent = `${deliveredToday} เสร็จแล้ว`;
+
   // Recent orders
   const recent = DB.orders.slice(0, 5);
-  document.getElementById('dashRecentOrders').innerHTML = recent.map(o =>
-    `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
-      <div><div style="font-weight:600;">${o.id}</div><div style="color:var(--text-muted);">${o.customer}</div></div>
-      <div style="text-align:right;"><div class="text-primary fw-bold">฿${o.total.toLocaleString()}</div><span class="badge badge-${o.status}">${statusLabel(o.status)}</span></div>
-    </div>`
-  ).join('');
+  document.getElementById('dashRecentOrders').innerHTML = recent.length === 0
+    ? '<p class="text-muted text-center">ยังไม่มีออเดอร์</p>'
+    : recent.map(o =>
+      `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+        <div><div style="font-weight:600;">${o.id}</div><div style="color:var(--text-muted);">${o.customer}</div></div>
+        <div style="text-align:right;"><div class="text-primary fw-bold">฿${o.total.toLocaleString()}</div><span class="badge badge-${o.status}">${statusLabel(o.status)}</span></div>
+      </div>`
+    ).join('');
 
   // Top products
   const prodCount = {};
   DB.orders.forEach(o => o.items.forEach(i => { prodCount[i.name] = (prodCount[i.name] || 0) + i.qty; }));
   const top = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0,5);
-  document.getElementById('dashTopProducts').innerHTML = top.map(([name, qty], idx) =>
-    `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
-      <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1rem;width:20px;font-weight:700;color:var(--primary);">${idx+1}</span>${name}</div>
-      <span class="chip">${qty} ชิ้น</span>
-    </div>`
-  ).join('');
+  document.getElementById('dashTopProducts').innerHTML = top.length === 0
+    ? '<p class="text-muted text-center">ยังไม่มีข้อมูล</p>'
+    : top.map(([name, qty], idx) =>
+      `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+        <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1rem;width:20px;font-weight:700;color:var(--primary);">${idx+1}</span>${name}</div>
+        <span class="chip">${qty} ชิ้น</span>
+      </div>`
+    ).join('');
 
   renderWeeklyChart();
 }
@@ -1242,8 +1308,18 @@ function renderWeeklyChart() {
   const ctx = document.getElementById('weeklyChart');
   if (!ctx) return;
   if (ctx._chartInstance) ctx._chartInstance.destroy();
-  const labels = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
-  const data = [4200, 5800, 3900, 7200, 6100, 8400, 5600];
+  // สร้าง label 7 วันย้อนหลัง
+  const days = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+  const labels = [], data = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    labels.push(days[d.getDay()]);
+    const dateStr = d.toLocaleDateString('th-TH');
+    const dayRevenue = DB.orders
+      .filter(o => new Date(o.createdAt).toLocaleDateString('th-TH') === dateStr)
+      .reduce((s, o) => s + (o.total || 0), 0);
+    data.push(dayRevenue);
+  }
   ctx._chartInstance = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [{ label: 'ยอดขาย (฿)', data, backgroundColor: '#D4854A', borderRadius: 8 }] },
@@ -1310,7 +1386,7 @@ function viewOrder(id) {
     <div class="form-label mb-1">รายการสินค้า</div>
     <div class="items-list">
       ${order.items.map(i => `<div class="item-row"><span>${i.name}</span><span>${i.qty} × ฿${i.price} = <strong>฿${(i.qty*i.price).toLocaleString()}</strong></span></div>`).join('')}
-      ${order.deliveryMethod === 'delivery' ? `<div class="item-row text-muted"><span>ค่าส่ง</span><span>฿50</span></div>` : ''}
+      ${order.deliveryMethod === 'delivery' ? `<div class="item-row text-muted"><span>จัดส่งฟรี</span><span>฿0</span></div>` : ''}
       <div class="item-row" style="border-top:1px solid var(--border);padding-top:6px;font-weight:700;"><span>รวม</span><span class="text-primary">฿${order.total.toLocaleString()}</span></div>
     </div>
     <div class="form-group">
@@ -1529,11 +1605,36 @@ function rejectPayment(id) {
 
 // REPORT
 function renderReport() {
+  const period = document.getElementById('reportPeriod')?.value || 'week';
+  const days = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+  const filtered = DB.orders.filter(o => new Date(o.createdAt) >= cutoff);
+
+  const totalRevenue = filtered.reduce((s, o) => s + (o.total || 0), 0);
+  const totalOrders = filtered.length;
+  const uniqueCustomers = new Set(filtered.map(o => o.phone)).size;
+  const avgOrder = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+
+  document.getElementById('reportTotalRevenue').textContent = '฿' + totalRevenue.toLocaleString();
+  document.getElementById('reportTotalOrders').textContent = totalOrders;
+  document.getElementById('reportNewCustomers').textContent = uniqueCustomers;
+  document.getElementById('reportAvgOrder').textContent = '฿' + avgOrder.toLocaleString();
+
+  // กราฟ: แบ่งเป็น 6 ช่วง
   const ctx = document.getElementById('reportChart');
   if (!ctx) return;
   if (ctx._chartInstance) ctx._chartInstance.destroy();
-  const labels = ['ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.','ม.ค.'];
-  const data = [28000, 35000, 42000, 38000, 51000, 48000];
+  const slotSize = Math.ceil(days / 6);
+  const labels = [], data = [];
+  for (let i = 5; i >= 0; i--) {
+    const end = new Date(); end.setDate(end.getDate() - i * slotSize);
+    const start = new Date(); start.setDate(end.getDate() - slotSize);
+    labels.push(`${start.getDate()}/${start.getMonth()+1}`);
+    const rev = DB.orders
+      .filter(o => { const d = new Date(o.createdAt); return d >= start && d < end; })
+      .reduce((s, o) => s + (o.total || 0), 0);
+    data.push(rev);
+  }
   ctx._chartInstance = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [{ label: 'รายได้ (฿)', data, borderColor: '#D4854A', backgroundColor: 'rgba(212,133,74,0.1)', fill: true, tension: 0.4 }] },
@@ -1546,28 +1647,71 @@ function exportOrders() { showToast('กำลังส่งออก Excel... 
 // =========================================
 // RIDER
 // =========================================
+function setRiderDate(daysOffset) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysOffset);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  document.getElementById('riderDateFilter').value = `${yyyy}-${mm}-${dd}`;
+  renderRiderPage();
+}
+
 function renderRiderPage() {
-  const deliveries = DB.orders.filter(o => o.deliveryMethod === 'delivery' && ['ready','paid','production'].includes(o.status));
+  // ตั้ง default วันนี้ถ้ายังไม่ได้เลือก
+  const dateInput = document.getElementById('riderDateFilter');
+  if (!dateInput.value) setRiderDate(0);
+  const selectedDate = dateInput.value;
+
+  // กรองเฉพาะออเดอร์ที่ assign มาให้ rider นี้ (หรือทั้งหมดถ้ายังไม่มี riderId)
+  const deliveries = DB.orders.filter(o =>
+    o.deliveryMethod === 'delivery' &&
+    o.deliveryDate === selectedDate &&
+    ['ready','paid','production'].includes(o.status)
+  );
+
   document.getElementById('riderDeliveryCount').textContent = deliveries.length + ' รายการ';
+
+  // อัปเดต route summary
+  const summary = document.getElementById('routeSummary');
+  if (deliveries.length > 0) {
+    const routeTotal = deliveries.reduce((s, o) => s + (o.total || 0), 0);
+    const thDate = new Date(selectedDate).toLocaleDateString('th-TH', { day:'numeric', month:'long', year:'numeric' });
+    document.getElementById('routeDate').textContent = thDate;
+    document.getElementById('routeCount').textContent = deliveries.length;
+    document.getElementById('routeTotal').textContent = '฿' + routeTotal.toLocaleString();
+    summary.style.display = 'block';
+  } else {
+    summary.style.display = 'none';
+  }
+
   const el = document.getElementById('riderDeliveryList');
   if (deliveries.length === 0) {
-    el.innerHTML = `<div class="text-center text-muted" style="padding:3rem 0;"><div style="font-size:3rem;margin-bottom:1rem;">📭</div><p>ไม่มีงานส่งในวันนี้</p></div>`; return;
+    const thDate = new Date(selectedDate + 'T00:00:00').toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long' });
+    el.innerHTML = `<div class="text-center text-muted" style="padding:3rem 0;">
+      <div style="font-size:3rem;margin-bottom:1rem;">📭</div>
+      <p>ไม่มีงานส่งวัน${thDate}</p>
+      <p style="font-size:0.85rem;margin-top:0.5rem;">ลองเลือกวันอื่น หรือรอ back office มอบหมายงาน</p>
+    </div>`; return;
   }
-  el.innerHTML = deliveries.map(o => `
+
+  el.innerHTML = deliveries.map((o, idx) => `
     <div class="delivery-card">
       <div class="delivery-header">
-        <span class="delivery-id">${o.id}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="background:var(--primary);color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">${idx+1}</span>
+          <span class="delivery-id">${o.id}</span>
+        </div>
         <span class="badge badge-${o.status}">${statusLabel(o.status)}</span>
       </div>
       <div class="customer-info">
         👤 <strong>${o.customer}</strong><br>
-        📞 ${o.phone}<br>
+        📞 <a href="tel:${o.phone}" style="color:var(--primary);">${o.phone}</a><br>
         📅 ส่งวันที่ ${o.deliveryDate}<br>
-        📍 ${o.address}
+        📍 ${o.address || '-'}
       </div>
       <div class="items-list">
         ${o.items.map(i => `<div class="item-row"><span>${i.name}</span><span>×${i.qty} = ฿${(i.price*i.qty).toLocaleString()}</span></div>`).join('')}
-        <div class="item-row text-muted"><span>ค่าส่ง</span><span>฿50</span></div>
         <div class="item-row fw-bold"><span>ยอดรวม</span><span class="text-primary">฿${o.total.toLocaleString()}</span></div>
       </div>
       <div class="form-group" style="margin:0.75rem 0 0.5rem;">
@@ -1647,7 +1791,7 @@ function returnRiderItem(idx, orderId) {
 function recalcRiderTotal(orderId) {
   const order = DB.orders.find(o => o.id === orderId);
   if (!order) return;
-  const total = order.items.reduce((s, i) => s + i.price * i.qty, 0) + 50;
+  const total = order.items.reduce((s, i) => s + i.price * i.qty, 0);
   order.total = total;
   const el = document.getElementById('riderTotal');
   if (el) el.textContent = '฿' + total.toLocaleString();
@@ -1668,32 +1812,54 @@ function renderOwnerPage() {
 }
 
 function renderOwnerCharts() {
-  // Revenue chart
+  // คำนวณ stats จริง
+  const totalRevenue = DB.orders.reduce((s, o) => s + (o.total || 0), 0);
+  const totalOrders = DB.orders.length;
+  const uniqueCustomers = new Set(DB.orders.map(o => o.phone)).size;
+  const avgOrder = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+  document.getElementById('ownerTotalRevenue').textContent = '฿' + totalRevenue.toLocaleString();
+  document.getElementById('ownerTotalOrders').textContent = totalOrders;
+  document.getElementById('ownerTotalCustomers').textContent = uniqueCustomers;
+  document.getElementById('ownerAvgOrder').textContent = '฿' + avgOrder.toLocaleString();
+
+  // กราฟรายได้ย้อนหลัง 6 เดือน
   const revCtx = document.getElementById('ownerRevenueChart');
   if (revCtx) {
     if (revCtx._chartInstance) revCtx._chartInstance.destroy();
+    const thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const labels = [], revData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setMonth(d.getMonth() - i);
+      labels.push(thMonths[d.getMonth()]);
+      const rev = DB.orders
+        .filter(o => { const od = new Date(o.createdAt); return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear(); })
+        .reduce((s, o) => s + (o.total || 0), 0);
+      revData.push(rev);
+    }
     revCtx._chartInstance = new Chart(revCtx, {
       type: 'bar',
-      data: {
-        labels: ['ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'],
-        datasets: [
-          { label: 'รายได้', data: [28000,35000,42000,38000,51000,48200], backgroundColor: '#D4854A', borderRadius: 6 },
-          { label: 'กำไร', data: [8400,10500,12600,11400,15300,14460], backgroundColor: '#4A7C6F', borderRadius: 6 }
-        ]
-      },
-      options: { responsive: true, scales: { y: { ticks: { callback: v => '฿'+(v/1000)+'K' } } } }
+      data: { labels, datasets: [{ label: 'รายได้', data: revData, backgroundColor: '#D4854A', borderRadius: 6 }] },
+      options: { responsive: true, scales: { y: { ticks: { callback: v => '฿'+(v/1000).toFixed(0)+'K' } } } }
     });
   }
 
-  // Category chart
+  // กราฟสัดส่วนหมวดสินค้าจริง
   const catCtx = document.getElementById('ownerCatChart');
   if (catCtx) {
     if (catCtx._chartInstance) catCtx._chartInstance.destroy();
+    const catMap = {};
+    DB.orders.forEach(o => o.items.forEach(i => {
+      const prod = DB.products.find(p => p.id === i.id);
+      const cat = prod ? prod.category : 'อื่นๆ';
+      catMap[cat] = (catMap[cat] || 0) + i.qty * i.price;
+    }));
+    const catLabels = Object.keys(catMap);
+    const catData = Object.values(catMap);
     catCtx._chartInstance = new Chart(catCtx, {
       type: 'doughnut',
       data: {
-        labels: ['เพสตรี้','เค้ก','คุกกี้','ขนมปัง','เครื่องดื่ม'],
-        datasets: [{ data: [35,28,18,12,7], backgroundColor: ['#D4854A','#4A7C6F','#E8C547','#9B59B6','#3498DB'] }]
+        labels: catLabels,
+        datasets: [{ data: catData, backgroundColor: ['#D4854A','#4A7C6F','#E8C547','#9B59B6','#3498DB','#E74C3C','#1ABC9C'] }]
       },
       options: { responsive: true, plugins: { legend: { position: 'right' } } }
     });
@@ -1705,7 +1871,9 @@ function renderOwnerTopProducts() {
   DB.orders.forEach(o => o.items.forEach(i => { prodCount[i.name] = (prodCount[i.name] || 0) + i.qty * i.price; }));
   const top = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
   const max = top[0]?.[1] || 1;
-  document.getElementById('ownerTopProducts').innerHTML = top.map(([name, rev], idx) => `
+  document.getElementById('ownerTopProducts').innerHTML = top.length === 0
+    ? '<p class="text-muted text-center">ยังไม่มีข้อมูลออเดอร์</p>'
+    : top.map(([name, rev], idx) => `
     <div style="margin-bottom:12px;">
       <div class="flex-between mb-1" style="font-size:0.88rem;">
         <span><strong>${idx+1}.</strong> ${name}</span>
@@ -1717,28 +1885,27 @@ function renderOwnerTopProducts() {
 }
 
 function renderOwnerCustomers() {
-  const customers = [
-    { name: 'สมหญิง ใจดี', orders: 12, total: 4250 },
-    { name: 'วิชัย มั่งมี', orders: 8, total: 3120 },
-    { name: 'นิดา สวยงาม', orders: 15, total: 5800 },
-    { name: 'ประยุทธ์ เก่งมาก', orders: 6, total: 2340 },
-    { name: 'แสงเดือน หัวใจดี', orders: 20, total: 7600 },
-  ];
-  document.getElementById('ownerCustomers').innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ลูกค้า</th><th>ออเดอร์</th><th>ยอดรวม</th><th>เฉลี่ย/ออเดอร์</th></tr></thead>
+  // รวมออเดอร์จริงตามเบอร์โทร
+  const custMap = {};
+  DB.orders.forEach(o => {
+    if (!custMap[o.phone]) custMap[o.phone] = { name: o.customer, phone: o.phone, orders: 0, total: 0 };
+    custMap[o.phone].orders++;
+    custMap[o.phone].total += o.total || 0;
+  });
+  const customers = Object.values(custMap).sort((a,b) => b.total - a.total).slice(0, 10);
+  document.getElementById('ownerCustomers').innerHTML = customers.length === 0
+    ? '<p class="text-muted text-center">ยังไม่มีข้อมูลลูกค้า</p>'
+    : `<div class="table-wrap"><table>
+        <thead><tr><th>ลูกค้า</th><th>โทร</th><th>ออเดอร์</th><th>ยอดรวม</th><th>เฉลี่ย/ออเดอร์</th></tr></thead>
         <tbody>${customers.map(c => `
           <tr>
             <td><strong>${c.name}</strong></td>
+            <td style="font-size:0.82rem;color:var(--text-muted);">${c.phone}</td>
             <td>${c.orders} ครั้ง</td>
             <td class="text-primary fw-bold">฿${c.total.toLocaleString()}</td>
             <td>฿${Math.round(c.total/c.orders).toLocaleString()}</td>
           </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
+        </tbody></table></div>`;
 }
 
 // =========================================
@@ -1783,7 +1950,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function printBill(orderId) {
   const order = DB.orders.find(o => o.id === orderId);
   if (!order) return;
-  const deliveryFee = order.deliveryMethod === 'delivery' ? 50 : 0;
+  const deliveryFee = 0; // ส่งฟรี
   const payEl = document.getElementById('riderPayMethod_' + orderId);
   const payMethod = payEl ? payEl.value : (order.payMethod || 'cash');
   const payLabel = payMethod === 'cash' ? '💵 เงินสด' : '🏦 โอนเงิน';
