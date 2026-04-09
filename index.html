@@ -408,31 +408,18 @@
       <div class="card-header">💳 ชำระเงิน</div>
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">วิธีชำระเงิน *</label>
-          <select class="form-control" id="paymentMethod" onchange="toggleSlip()">
+          <label class="form-label">วิธีชำระเงิน (เบื้องต้น) *</label>
+          <select class="form-control" id="paymentMethod">
             <option value="">-- เลือกวิธีชำระ --</option>
             <option value="transfer">🏦 โอนเงิน</option>
-            <option value="cash">💵 เงินสด (ชำระปลายทาง)</option>
+            <option value="cash">💵 เงินสด (ชำระกับไรเดอร์)</option>
           </select>
         </div>
-        <div id="slipGroup" class="hidden">
-          <div style="background:var(--bg);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1rem;font-size:0.88rem;">
-            <strong>ธนาคารกสิกรไทย</strong><br>
-            เลขบัญชีพร้อมเพย์: 089-473-6141<br>
-            ชื่อบัญชี: นางศิวพร เรอุไร
-          </div>
-          <div class="form-group">
-            <label class="form-label">อัพโหลดสลิปโอนเงิน *</label>
-            <label class="upload-area" for="slipFile">
-              <input type="file" id="slipFile" accept="image/*" onchange="previewSlip(this)">
-              <div id="slipPreview">
-                <div style="font-size:2rem;">📎</div>
-                <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem;">คลิกเพื่ออัพโหลดสลิป</p>
-              </div>
-            </label>
-          </div>
+        <div style="background:var(--primary-light);border-radius:var(--radius-sm);padding:12px;font-size:0.88rem;color:var(--primary-dark);">
+          📌 <strong>หมายเหตุ:</strong> การชำระเงินจะดำเนินการโดยพนักงานส่งสินค้า (Rider)<br>
+          ไม่ว่าจะโอนเงินหรือเงินสด ไรเดอร์จะเป็นผู้รับและยืนยันการชำระ
         </div>
-        <div class="flex-between" style="padding:12px;background:var(--bg);border-radius:var(--radius-sm);">
+        <div class="flex-between" style="padding:12px;background:var(--bg);border-radius:var(--radius-sm);margin-top:0.75rem;">
           <span>ยอดรวม</span>
           <strong class="text-primary" style="font-size:1.3rem;" id="checkoutTotal">฿0</strong>
         </div>
@@ -479,6 +466,7 @@
     <div class="nav-brand">🥐 แบ็คออฟฟิศ</div>
     <div style="display:flex;align-items:center;gap:8px;">
       <span style="font-size:0.85rem;color:var(--text-muted);" id="adminUserLabel"></span>
+      <button class="btn btn-secondary btn-sm" onclick="refreshAdmin()" title="โหลดข้อมูลใหม่">🔄 Refresh</button>
       <button class="btn btn-secondary btn-sm" onclick="doLogout()">ออกจากระบบ</button>
     </div>
   </nav>
@@ -613,17 +601,31 @@
           <h2 class="section-title">🚚 มอบหมายงานส่ง</h2>
         </div>
         <div id="assignList"></div>
+
+        <!-- ประวัติการ assign -->
+        <div class="card mt-3" style="margin-top:1.5rem;">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>📋 ประวัติการมอบหมายงาน</span>
+            <button class="btn btn-secondary btn-sm" onclick="renderAssignHistory()">🔄 รีเฟรช</button>
+          </div>
+          <div class="card-body" style="padding:0;overflow-x:auto;">
+            <div id="assignHistoryList" style="min-height:60px;padding:0.5rem;">
+              <p class="text-muted text-center" style="padding:1rem;">กด รีเฟรช เพื่อโหลดประวัติ</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- PAYMENTS -->
       <div id="admin-payments" class="admin-tab hidden">
         <div class="section-header">
           <h2 class="section-title">💳 ตรวจสอบการชำระ</h2>
+          <button class="btn btn-secondary btn-sm" onclick="loadOrdersForPayments()">🔄 รีเฟรช</button>
         </div>
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>ยอด</th><th>วิธีชำระ</th><th>สลิป</th><th>ยืนยัน</th></tr></thead>
+              <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>ยอด</th><th>วิธีชำระ</th><th>Rider / เวลา</th><th>สลิป</th><th>ยืนยัน</th></tr></thead>
               <tbody id="paymentTableBody"></tbody>
             </table>
           </div>
@@ -663,6 +665,7 @@
     <div style="display:flex;align-items:center;gap:8px;">
       <span id="offlineBadge" style="font-size:0.72rem;font-weight:600;color:var(--success);">🟢 Online</span>
       <span style="font-size:0.85rem;color:var(--text-muted);" id="riderUserLabel"></span>
+      <button class="btn btn-secondary btn-sm" onclick="refreshRider()" title="โหลดข้อมูลใหม่">🔄</button>
       <button class="btn btn-secondary btn-sm" onclick="doLogout()">ออก</button>
     </div>
   </nav>
@@ -702,7 +705,10 @@
 <div id="page-owner" class="page">
   <nav class="nav">
     <div class="nav-brand">👑 ภาพรวมธุรกิจ</div>
-    <button class="btn btn-secondary btn-sm" onclick="doLogout()">ออกจากระบบ</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="refreshOwner()" title="โหลดข้อมูลใหม่">🔄 Refresh</button>
+      <button class="btn btn-secondary btn-sm" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
   </nav>
   <div class="container-wide">
     <div class="section-header mb-3">
@@ -1167,9 +1173,6 @@ function placeOrder() {
   if (method === 'delivery' && !document.getElementById('deliveryAddress').value.trim()) {
     showToast('กรุณากรอกที่อยู่จัดส่ง', 'error'); return;
   }
-  if (payMethod === 'transfer' && !document.getElementById('slipFile').files[0]) {
-    showToast('กรุณาอัพโหลดสลิปโอนเงิน', 'error'); return;
-  }
 
   const items = Object.values(cart).map(i => ({...i}));
   let total = items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -1231,10 +1234,59 @@ function adminTab(tab, el) {
   if (tab === 'orders') loadOrders();
   if (tab === 'products') renderProducts_admin();
   if (tab === 'production') renderProduction();
-  if (tab === 'delivery-assign') renderAssign();
+  if (tab === 'delivery-assign') { renderAssign(); renderAssignHistory(); }
   if (tab === 'payments') loadOrdersForPayments();
   if (tab === 'reports') renderReport();
   return false;
+}
+
+// ========== REFRESH FUNCTIONS ==========
+function refreshAdmin() {
+  showToast('🔄 กำลังโหลดข้อมูลใหม่...', 'info');
+  loadOrders();
+}
+
+function refreshRider() {
+  showToast('🔄 กำลังโหลดข้อมูลใหม่...', 'info');
+  loadOrdersForRider();
+}
+
+function refreshOwner() {
+  showToast('🔄 กำลังโหลดข้อมูลใหม่...', 'info');
+  loadOrdersForOwner();
+}
+
+// ========== ASSIGNMENT HISTORY ==========
+function renderAssignHistory() {
+  const el = document.getElementById('assignHistoryList');
+  if (!el) return;
+  // ดึง order ที่มี riderId (ถูก assign แล้ว) ทุกสถานะ
+  const assigned = DB.orders
+    .filter(o => o.riderId)
+    .sort((a, b) => (b.assignedAt || b.createdAt || '').localeCompare(a.assignedAt || a.createdAt || ''));
+  if (assigned.length === 0) {
+    el.innerHTML = `<p class="text-muted text-center" style="padding:1rem;">ยังไม่มีประวัติการ assign</p>`; return;
+  }
+  el.innerHTML = `<table style="width:100%;font-size:0.85rem;border-collapse:collapse;">
+    <thead><tr style="background:var(--bg);">
+      <th style="padding:8px;text-align:left;">เลขที่</th>
+      <th style="padding:8px;text-align:left;">ลูกค้า</th>
+      <th style="padding:8px;text-align:left;">Rider</th>
+      <th style="padding:8px;text-align:left;">Assign โดย</th>
+      <th style="padding:8px;text-align:left;">เวลา Assign</th>
+      <th style="padding:8px;text-align:left;">สถานะ</th>
+    </tr></thead>
+    <tbody>${assigned.map(o => `
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:8px;"><strong class="text-primary">${o.id}</strong></td>
+        <td style="padding:8px;">${o.customer}</td>
+        <td style="padding:8px;">👤 ${o.riderName || o.riderId}</td>
+        <td style="padding:8px;">${o.assignedBy ? `🔑 ${o.assignedBy}` : '-'}</td>
+        <td style="padding:8px;font-size:0.78rem;color:var(--text-muted);">${o.assignedAt || '-'}</td>
+        <td style="padding:8px;"><span class="badge badge-${o.status}">${statusLabel(o.status)}</span></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
 }
 
 function renderAdminDashboard() {
@@ -1245,7 +1297,7 @@ function renderAdminDashboard() {
     return d === today;
   });
   const todayRevenue = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
-  const pendingSlip = DB.orders.filter(o => o.status === 'pending').length;
+  const pendingSlip = DB.orders.filter(o => o.status === 'delivered').length;
   const todayDelivery = DB.orders.filter(o => o.deliveryMethod === 'delivery' && ['ready','paid','production','delivered'].includes(o.status));
   const deliveredToday = todayDelivery.filter(o => o.status === 'delivered').length;
 
@@ -1350,6 +1402,13 @@ function loadOrders() {
         address: o.address,
         note: o.note,
         createdAt: o.createdAt,
+        riderId: o.riderId || '',
+        riderName: o.riderName || o.riderId || '',
+        assignedBy: o.assignedBy || '',
+        assignedAt: o.assignedAt || '',
+        deliveredBy: o.deliveredBy || o.riderId || '',
+        deliveredAt: o.deliveredAt || '',
+        slipUrl: o.slipUrl || '',
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
           name: i.productName || i.name,
@@ -1651,7 +1710,14 @@ function assignRider(orderId) {
 
   // อัปเดต memory ทันที
   const order = DB.orders.find(o => o.id === orderId);
-  if (order) { order.status = 'ready'; order.riderId = riderId; order.riderNote = riderNote; }
+  if (order) {
+    order.status = 'ready';
+    order.riderId = riderId;
+    order.riderName = riderName;
+    order.riderNote = riderNote;
+    order.assignedBy = currentUser?.username || '';
+    order.assignedAt = new Date().toLocaleString('th-TH');
+  }
   renderAssign();
   showToast(`กำลังมอบหมายงาน...`, 'info');
   const params = new URLSearchParams({
@@ -1660,7 +1726,10 @@ function assignRider(orderId) {
     orderId,
     status: 'ready',
     riderId,
+    riderName,
     riderNote,
+    assignedBy: currentUser?.username || '',
+    assignedAt: new Date().toLocaleString('th-TH'),
   });
   fetch(`${GAS_URL}?${params}`)
     .then(r => r.json())
@@ -1694,6 +1763,11 @@ function loadOrdersForPayments() {
         deliveryMethod: o.deliveryMethod,
         address: o.address, note: o.note,
         createdAt: o.createdAt, riderId: o.riderId || '',
+        riderName: o.riderName || o.riderId || '',
+        assignedBy: o.assignedBy || '',
+        assignedAt: o.assignedAt || '',
+        deliveredBy: o.deliveredBy || o.riderId || '',
+        deliveredAt: o.deliveredAt || '',
         slipUrl: o.slipUrl || '',
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
@@ -1708,21 +1782,26 @@ function loadOrdersForPayments() {
 }
 
 function renderPayments() {
-  const orders = DB.orders.filter(o => o.status === 'pending');
+  // แสดง order ที่ rider ส่งแล้ว (delivered) รอ admin ยืนยันการชำระ
+  const orders = DB.orders.filter(o => o.status === 'delivered');
   document.getElementById('paymentTableBody').innerHTML = orders.length === 0
-    ? `<tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">ไม่มีรายการรอตรวจสอบ</td></tr>`
+    ? `<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">ไม่มีรายการรอตรวจสอบ</td></tr>`
     : orders.map(o => `
       <tr>
         <td><strong class="text-primary">${o.id}</strong></td>
-        <td>${o.customer}</td>
+        <td>${o.customer}<br><span style="font-size:0.78rem;color:var(--text-muted);">${o.phone||''}</span></td>
         <td class="fw-bold">฿${o.total.toLocaleString()}</td>
         <td>${isTransferPayment(o) ? '🏦 โอนเงิน' : '💵 เงินสด'}</td>
+        <td style="font-size:0.82rem;color:var(--text-muted);">
+          ${o.deliveredBy ? `👤 ${o.deliveredBy}` : (o.riderId ? `👤 ${o.riderId}` : '-')}<br>
+          ${o.deliveredAt || o.createdAt || ''}
+        </td>
         <td>${isTransferPayment(o)
           ? `<button class="btn btn-sm btn-secondary" onclick="showToast('แสดงสลิป (จำลอง)', 'success')">ดูสลิป</button>`
-          : '<span class="text-muted">-</span>'
+          : `<span style="font-size:0.85rem;color:var(--text-muted);">เงินสด</span>`
         }</td>
         <td>
-          <button class="btn btn-sm btn-success" onclick="approvePayment('${o.id}')">✓ ยืนยัน</button>
+          <button class="btn btn-sm btn-success" onclick="approvePayment('${o.id}')">✓ ยืนยันชำระ</button>
           <button class="btn btn-sm btn-danger" onclick="rejectPayment('${o.id}')">✗ ปฏิเสธ</button>
         </td>
       </tr>`).join('');
@@ -1848,14 +1927,17 @@ function loadOrdersForRider() {
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
         status: normalizeStatus(o.status),
-        payMethod: o.paymentMethod,
+        payMethod: normalizePayMethod(o.paymentMethod),
         deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
         deliveryMethod: o.deliveryMethod,
         address: o.address,
         note: o.note,
         createdAt: o.createdAt,
         riderId: o.riderId || '',
+        riderName: o.riderName || o.riderId || '',
         riderNote: o.riderNote || '',
+        assignedBy: o.assignedBy || '',
+        assignedAt: o.assignedAt || '',
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
           name: i.productName || i.name,
@@ -2134,7 +2216,7 @@ function loadOrdersForOwner() {
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
         status: normalizeStatus(o.status),
-        payMethod: o.paymentMethod,
+        payMethod: normalizePayMethod(o.paymentMethod),
         deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
         deliveryMethod: o.deliveryMethod,
         address: o.address,
@@ -2336,20 +2418,32 @@ function completeDeliveryWithPayment(orderId) {
   const payMethod = payEl ? payEl.value : 'cash';
   order.payMethod = payMethod;
   order.status = 'delivered';
+  order.deliveredBy = currentUser?.username || '';
+  order.deliveredAt = new Date().toLocaleString('th-TH');
 
+  const deliveryItems = order.items.map(i => ({
+    id: i.id, name: i.name, price: i.price,
+    originalQty: i.originalQty || i.qty || 0,
+    deliveredQty: i.qty,
+    returnedQty: Math.max(0, (i.originalQty || 0) - i.qty),
+    isExtra: i.isExtra || false,
+  }));
+
+  const label = payMethod === 'cash' ? '💵 เงินสด' : '🏦 โอนเงิน';
   const params = new URLSearchParams({
     action: 'updateOrder',
     token: currentUser?.token || '',
     orderId,
     status: 'delivered',
     riderId: currentUser?.username || '',
+    paymentMethod: payMethod,
+    deliveryItems: JSON.stringify(deliveryItems),
   });
-  const label = payMethod === 'cash' ? '💵 เงินสด' : '🏦 โอนเงิน';
   fetch(`${GAS_URL}?${params}`)
     .then(r => r.json())
     .then(res => {
-      if (res.success) showToast(`✅ ส่งสำเร็จ — ${label}`, 'success');
-      else showToast(`⚠️ บันทึกไม่สำเร็จ: ${res.error}`, 'error');
+      if (res.success) showToast(`✅ ส่งสำเร็จ — ${label} | รอ Admin ยืนยัน`, 'success');
+      else { order.status = 'ready'; renderRiderPage(); showToast(`⚠️ บันทึกไม่สำเร็จ: ${res.error}`, 'error'); }
     })
     .catch(() => showToast('📴 ไม่สามารถเชื่อมต่อได้', 'error'));
 
