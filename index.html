@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🥐 สั่งขนม - ร้านแหม่มเบเกอรี่</title>
+<title>🥐 สั่งขนม - ร้านเบเกอรี่</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -946,7 +946,7 @@ function goTo(pageId) {
   const pg = document.getElementById(pageId);
   if (pg) { pg.classList.add('active'); pg.scrollTop = 0; }
   if (pageId === 'page-admin') { loadOrders(); }
-  if (pageId === 'page-rider') renderRiderPage();
+  if (pageId === 'page-rider') loadOrdersForRider();
   if (pageId === 'page-owner') renderOwnerPage();
   if (pageId === 'page-customer') renderProducts();
   if (pageId === 'page-checkout') renderCheckout();
@@ -975,6 +975,7 @@ function doLogin() {
     }
     currentUser = { username: res.username, role: res.role, name: res.name, token: res.token };
     showToast(`ยินดีต้อนรับ ${res.name}! 🎉`, 'success');
+    loadUsers(); // โหลด rider list สำหรับ dropdown มอบหมายงาน
     if (res.role === 'admin') {
       document.getElementById('adminUserLabel').textContent = `👤 ${res.name}`;
       goTo('page-admin');
@@ -1601,8 +1602,9 @@ function renderAssign() {
       <div style="display:flex;gap:8px;align-items:center;">
         <select class="form-control" id="rider_${o.id}" style="flex:1;">
           <option value="">-- เลือกพนักงานส่ง --</option>
-          <option value="rider">ไปรษณีย์ รวดเร็ว</option>
-          <option value="rider2">สมชาย ขยัน</option>
+          ${DB.users.filter(u => u.role === 'rider' && u.active).map(u =>
+            `<option value="${u.username}">${u.name}</option>`
+          ).join('')}
         </select>
         <button class="btn btn-primary btn-sm" onclick="assignRider('${o.id}')">มอบหมาย</button>
       </div>
@@ -1725,18 +1727,71 @@ function setRiderDate(daysOffset) {
   renderRiderPage();
 }
 
+function loadUsers() {
+  if (!currentUser?.token) return;
+  fetch(`${GAS_URL}?action=getUsers&token=${encodeURIComponent(currentUser.token)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        DB.users = data.map(u => ({
+          id: u.id,
+          username: u.username,
+          role: u.role,
+          name: u.name,
+          active: u.active === true || u.active === 'TRUE',
+        }));
+      }
+    })
+    .catch(() => {});
+}
+
+function loadOrdersForRider() {
+  if (!currentUser?.token) return;
+  const url = `${GAS_URL}?action=getOrders&token=${encodeURIComponent(currentUser.token)}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { renderRiderPage(); return; }
+      DB.orders = data.map(o => ({
+        id: o.id,
+        customer: o.customerName,
+        phone: o.customerPhone,
+        total: parseFloat(o.total) || 0,
+        status: o.status,
+        payMethod: o.paymentMethod,
+        deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
+        deliveryMethod: o.deliveryMethod,
+        address: o.address,
+        note: o.note,
+        createdAt: o.createdAt,
+        riderId: o.riderId || '',
+        items: Array.isArray(o.items) ? o.items.map(i => ({
+          id: i.productId || i.id,
+          name: i.productName || i.name,
+          qty: parseInt(i.quantity || i.qty) || 0,
+          price: parseFloat(i.unitPrice || i.price) || 0,
+        })) : [],
+      }));
+      renderRiderPage();
+    })
+    .catch(() => renderRiderPage());
+}
+
 function renderRiderPage() {
   // ตั้ง default วันนี้ถ้ายังไม่ได้เลือก
   const dateInput = document.getElementById('riderDateFilter');
   if (!dateInput.value) setRiderDate(0);
   const selectedDate = dateInput.value;
 
-  // กรองเฉพาะออเดอร์ที่ assign มาให้ rider นี้ (หรือทั้งหมดถ้ายังไม่มี riderId)
-  const deliveries = DB.orders.filter(o =>
-    o.deliveryMethod === 'delivery' &&
-    o.deliveryDate === selectedDate &&
-    ['ready','paid','production'].includes(o.status)
-  );
+  // กรองเฉพาะออเดอร์ที่ assign มาให้ rider นี้ โดยเช็ค riderId และวันส่ง
+  const deliveries = DB.orders.filter(o => {
+    const orderDate = (o.deliveryDate || '').split('T')[0];
+    const matchRider = !o.riderId || o.riderId === currentUser.username;
+    return o.deliveryMethod === 'delivery' &&
+      orderDate === selectedDate &&
+      matchRider &&
+      ['ready','paid','production'].includes(o.status);
+  });
 
   document.getElementById('riderDeliveryCount').textContent = deliveries.length + ' รายการ';
 
