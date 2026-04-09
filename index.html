@@ -1192,24 +1192,22 @@ function placeOrder() {
   showToast('สั่งซื้อสำเร็จ! 🎉', 'success');
   goTo('page-success');
 
-  // ส่งข้อมูลไป Google Sheets จริง
-  const payload = {
+  // ส่งข้อมูลไป Google Sheets จริง (GET เพื่อหลีกเลี่ยง CORS preflight)
+  const orderItems = items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price }));
+  const params = new URLSearchParams({
     action: 'createOrder',
     customerName: name,
     customerPhone: phone,
-    items: items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
+    items: JSON.stringify(orderItems),
     total,
     deliveryDate: date,
     deliveryMethod: method,
-    address: document.getElementById('deliveryAddress')?.value.trim() || '',
-    note: document.getElementById('custNote')?.value.trim() || '',
+    address: order.address || '',
+    note: order.note || '',
     paymentMethod: payMethod,
-  };
+  });
 
-  fetch(GAS_URL, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  fetch(`${GAS_URL}?${params}`)
   .then(r => r.json())
   .then(res => {
     if (res.success) {
@@ -1599,14 +1597,19 @@ function renderAssign() {
         <span class="badge badge-ready">${statusLabel(o.status)}</span>
       </div>
       <div class="customer-info">👤 ${o.customer} | 📞 ${o.phone}<br>📍 ${o.address}</div>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
         <select class="form-control" id="rider_${o.id}" style="flex:1;">
           <option value="">-- เลือกพนักงานส่ง --</option>
           ${DB.users.filter(u => u.role === 'rider' && u.active).map(u =>
             `<option value="${u.username}">${u.name}</option>`
           ).join('')}
         </select>
-        <button class="btn btn-primary btn-sm" onclick="assignRider('${o.id}')">มอบหมาย</button>
+      </div>
+      <div style="margin-bottom:8px;">
+        <input class="form-control" id="riderNote_${o.id}" placeholder="📝 หมายเหตุถึง rider (ถ้ามี)" style="font-size:0.88rem;">
+      </div>
+      <div style="text-align:right;">
+        <button class="btn btn-primary btn-sm" onclick="assignRider('${o.id}')">✅ มอบหมาย</button>
       </div>
     </div>
   `).join('');
@@ -1625,12 +1628,16 @@ function assignRider(orderId) {
   showToast(`กำลังมอบหมายงาน...`, 'info');
 
   // บันทึกไป GAS จริง
+  const riderNoteEl = document.getElementById('riderNote_' + orderId);
+  const riderNote = riderNoteEl ? riderNoteEl.value.trim() : '';
+  if (order) order.riderNote = riderNote;
   const params = new URLSearchParams({
     action: 'updateOrder',
     token: currentUser?.token || '',
     orderId,
     status: 'ready',
     riderId,
+    riderNote,
   });
   fetch(`${GAS_URL}?${params}`)
     .then(r => r.json())
@@ -1857,39 +1864,123 @@ function openDeliveryModal(id) {
   const order = DB.orders.find(o => o.id === id);
   if (!order) return;
   selectedDeliveryId = id;
-  document.getElementById('deliveryModalTitle').textContent = `จัดการ ${order.id}`;
+  // เก็บ originalQty ครั้งแรกที่เปิด modal
+  order.items.forEach(i => { if (i.originalQty === undefined) i.originalQty = i.qty; });
+  document.getElementById('deliveryModalTitle').textContent = `📋 จัดการออเดอร์ ${order.id}`;
   document.getElementById('deliveryModalBody').innerHTML = `
-    <p class="text-muted mb-2">แก้ไขรายการสินค้าสำหรับ ${order.customer}</p>
+    <div style="background:var(--primary-light);padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:1rem;font-size:0.88rem;">
+      👤 <strong>${order.customer}</strong> | 📞 ${order.phone}<br>
+      ${order.riderNote ? `<span style="color:var(--primary-dark);">📝 หมายเหตุจาก admin: <strong>${order.riderNote}</strong></span>` : ''}
+    </div>
+    <p class="form-label" style="margin-bottom:6px;">📦 รายการสินค้า (เพิ่ม/ลด/คืน)</p>
     <div id="riderItemsEdit">
       ${order.items.map((item, idx) => `
         <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border);" id="riderItem_${idx}">
-          <span>${item.name}</span>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button class="qty-btn" style="width:26px;height:26px;" onclick="adjustRiderItem(${idx}, -1, '${id}')">−</button>
-            <span id="riderQty_${idx}" class="fw-bold">${item.qty}</span>
-            <button class="qty-btn" style="width:26px;height:26px;" onclick="adjustRiderItem(${idx}, 1, '${id}')">+</button>
-            <button class="btn btn-sm btn-danger" style="padding:4px 8px;" onclick="returnRiderItem(${idx}, '${id}')">คืน</button>
+          <div style="flex:1;font-size:0.88rem;">
+            <div>${item.name}</div>
+            <div style="color:var(--text-muted);font-size:0.78rem;">ออเดอร์: ${item.originalQty||item.qty} | ฿${item.price}/ชิ้น</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="qty-btn" onclick="adjustRiderItem(${idx}, -1, '${id}')">−</button>
+            <span id="riderQty_${idx}" class="fw-bold" style="min-width:28px;text-align:center;">${item.qty}</span>
+            <button class="qty-btn" onclick="adjustRiderItem(${idx}, 1, '${id}')">+</button>
+            <button class="btn btn-sm btn-danger" style="padding:3px 8px;font-size:0.78rem;" onclick="returnRiderItem(${idx}, '${id}')">คืน</button>
           </div>
         </div>
       `).join('')}
     </div>
+    <div id="extraItemsEdit"></div>
+    <div style="margin-top:0.75rem;">
+      <p class="form-label">➕ เพิ่มสินค้านอกออเดอร์</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select class="form-control" id="extraProductSelect" style="flex:2;min-width:160px;font-size:0.85rem;">
+          <option value="">-- เลือกสินค้า --</option>
+          ${DB.products.filter(p => p.status === 'active').map(p =>
+            `<option value="${p.id}" data-price="${p.price}" data-name="${p.name}">${p.name} (฿${p.price})</option>`
+          ).join('')}
+        </select>
+        <input type="number" id="extraQty" class="form-control" value="1" min="1" style="width:64px;flex:none;">
+        <button class="btn btn-primary btn-sm" onclick="addExtraItem('${id}')">เพิ่ม</button>
+      </div>
+    </div>
     <div class="divider"></div>
     <div class="form-group">
-      <label class="form-label">วิธีชำระเงิน</label>
+      <label class="form-label">💳 วิธีชำระเงิน</label>
       <select class="form-control" id="riderPayMethod">
-        <option value="cash">💵 เงินสด</option>
-        <option value="transfer">🏦 โอนเงิน</option>
+        <option value="cash" ${(order.payMethod||'cash')==='cash'?'selected':''}>💵 เงินสด</option>
+        <option value="transfer" ${order.payMethod==='transfer'?'selected':''}>🏦 โอนเงิน</option>
       </select>
     </div>
-    <div class="flex-between" style="background:var(--bg);padding:12px;border-radius:var(--radius-sm);">
+    <div class="flex-between" style="background:var(--bg);padding:12px;border-radius:var(--radius-sm);font-size:1.05rem;">
       <span>ยอดรวม</span><strong class="text-primary" id="riderTotal">฿${order.total.toLocaleString()}</strong>
     </div>
   `;
   document.getElementById('deliveryModalFooter').innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="printBillFromModal('${id}')">🖨️ พิมพ์บิล</button>
     <button class="btn btn-secondary" onclick="closeModal('deliveryModal')">ปิด</button>
-    <button class="btn btn-success" onclick="completeDelivery('${id}');closeModal('deliveryModal');">✓ ยืนยันส่งแล้ว</button>
+    <button class="btn btn-success" onclick="confirmDelivery('${id}')">✅ ยืนยันส่งแล้ว</button>
   `;
   openModal('deliveryModal');
+}
+
+function addExtraItem(orderId) {
+  const order = DB.orders.find(o => o.id === orderId);
+  const sel = document.getElementById('extraProductSelect');
+  const qtyInput = document.getElementById('extraQty');
+  if (!sel.value || !order) { showToast('กรุณาเลือกสินค้า', 'error'); return; }
+  const opt = sel.options[sel.selectedIndex];
+  const price = parseFloat(opt.dataset.price) || 0;
+  const name = opt.dataset.name;
+  const qty = parseInt(qtyInput.value) || 1;
+  // ตรวจสอบว่ามีในรายการแล้วหรือยัง
+  const existing = order.items.findIndex(i => i.id === sel.value && i.isExtra);
+  if (existing !== -1) {
+    order.items[existing].qty += qty;
+  } else {
+    order.items.push({ id: sel.value, name, price, qty, originalQty: 0, isExtra: true });
+  }
+  recalcRiderTotal(orderId);
+  openDeliveryModal(orderId); // re-render modal
+}
+
+function confirmDelivery(id) {
+  const order = DB.orders.find(o => o.id === id);
+  if (!order) return;
+  const payMethod = document.getElementById('riderPayMethod')?.value || 'cash';
+  order.payMethod = payMethod;
+  order.status = 'delivered';
+
+  // สร้าง deliveryItems สำหรับส่ง GAS
+  const deliveryItems = order.items.map(i => ({
+    id: i.id, name: i.name, price: i.price,
+    originalQty: i.originalQty || 0,
+    deliveredQty: i.qty,
+    returnedQty: Math.max(0, (i.originalQty || 0) - i.qty),
+    isExtra: i.isExtra || false,
+  }));
+
+  closeModal('deliveryModal');
+  renderRiderPage();
+
+  const params = new URLSearchParams({
+    action: 'updateOrder',
+    token: currentUser?.token || '',
+    orderId: id,
+    status: 'delivered',
+    deliveryItems: JSON.stringify(deliveryItems),
+  });
+  fetch(`${GAS_URL}?${params}`)
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) showToast(`✅ ส่งออเดอร์ ${id} สำเร็จ!`, 'success');
+      else { order.status = 'ready'; renderRiderPage(); showToast(`❌ ${res.error}`, 'error'); }
+    })
+    .catch(() => showToast('❌ ไม่สามารถเชื่อมต่อได้', 'error'));
+}
+
+function printBillFromModal(id) {
+  closeModal('deliveryModal');
+  setTimeout(() => printBill(id), 100);
 }
 
 function adjustRiderItem(idx, delta, orderId) {
@@ -1922,7 +2013,23 @@ function recalcRiderTotal(orderId) {
 
 function completeDelivery(id) {
   const order = DB.orders.find(o => o.id === id);
-  if (order) { order.status = 'delivered'; renderRiderPage(); showToast(`ส่งออเดอร์ ${id} สำเร็จ! ✓`, 'success'); }
+  if (!order) return;
+  order.status = 'delivered';
+  renderRiderPage();
+
+  const params = new URLSearchParams({
+    action: 'updateOrder',
+    token: currentUser?.token || '',
+    orderId: id,
+    status: 'delivered',
+  });
+  fetch(`${GAS_URL}?${params}`)
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) showToast(`✅ ส่งออเดอร์ ${id} สำเร็จ!`, 'success');
+      else { order.status = 'ready'; renderRiderPage(); showToast(`❌ บันทึกไม่สำเร็จ: ${res.error}`, 'error'); }
+    })
+    .catch(() => showToast('❌ ไม่สามารถเชื่อมต่อได้', 'error'));
 }
 
 // =========================================
@@ -2112,30 +2219,21 @@ function completeDeliveryWithPayment(orderId) {
   order.payMethod = payMethod;
   order.status = 'delivered';
 
-  const payload = {
-    action: 'updateDelivery',
+  const params = new URLSearchParams({
+    action: 'updateOrder',
     token: currentUser?.token || '',
     orderId,
     status: 'delivered',
-    items: order.items,
-    paymentMethod: payMethod,
-  };
-
-  fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
+    riderId: currentUser?.username || '',
+  });
+  const label = payMethod === 'cash' ? '💵 เงินสด' : '🏦 โอนเงิน';
+  fetch(`${GAS_URL}?${params}`)
     .then(r => r.json())
     .then(res => {
-      const label = payMethod === 'cash' ? '💵 เงินสด' : '🏦 โอนเงิน';
-      if (res.success) {
-        showToast(`✅ ส่งสำเร็จ — ${label}`, 'success');
-        syncOfflineQueue();
-      } else {
-        showToast(`⚠️ บันทึกไม่สำเร็จ: ${res.error}`, 'error');
-      }
+      if (res.success) showToast(`✅ ส่งสำเร็จ — ${label}`, 'success');
+      else showToast(`⚠️ บันทึกไม่สำเร็จ: ${res.error}`, 'error');
     })
-    .catch(() => {
-      queueOffline(payload);
-      showToast('📴 Offline — บันทึกไว้ จะ sync เมื่อมีเน็ต', 'warning');
-    });
+    .catch(() => showToast('📴 ไม่สามารถเชื่อมต่อได้', 'error'));
 
   renderRiderPage();
   closeModal('deliveryModal');
