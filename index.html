@@ -1305,6 +1305,18 @@ function renderWeeklyChart() {
   });
 }
 
+// HELPERS
+function normalizePayMethod(val) {
+  const v = (val || '').toString().toLowerCase();
+  if (v === 'transfer' || v.includes('transfer') || v.includes('โอน')) return 'transfer';
+  return 'cash';
+}
+
+function isTransferPayment(o) {
+  const v = (o.payMethod || o.paymentMethod || '').toString().toLowerCase();
+  return v === 'transfer' || v === 'โอนเงิน' || v === 'bank_transfer' || v.includes('transfer') || v.includes('โอน');
+}
+
 // ORDERS
 function loadOrders() {
   if (!currentUser?.token) return;
@@ -1320,7 +1332,7 @@ function loadOrders() {
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
         status: o.status,
-        payMethod: o.paymentMethod,
+        payMethod: normalizePayMethod(o.paymentMethod),
         deliveryDate: o.deliveryDate,
         deliveryMethod: o.deliveryMethod,
         address: o.address,
@@ -1665,7 +1677,7 @@ function loadOrdersForPayments() {
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
         status: o.status,
-        payMethod: o.paymentMethod,
+        payMethod: normalizePayMethod(o.paymentMethod),
         deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
         deliveryMethod: o.deliveryMethod,
         address: o.address, note: o.note,
@@ -1684,7 +1696,7 @@ function loadOrdersForPayments() {
 }
 
 function renderPayments() {
-  const orders = DB.orders.filter(o => o.status === 'pending' && (o.payMethod === 'transfer' || o.paymentMethod === 'transfer'));
+  const orders = DB.orders.filter(o => o.status === 'pending' && isTransferPayment(o));
   document.getElementById('paymentTableBody').innerHTML = orders.length === 0
     ? `<tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">ไม่มีรายการรอตรวจสอบ</td></tr>`
     : orders.map(o => `
