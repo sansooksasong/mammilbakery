@@ -1294,15 +1294,31 @@ function renderAssignHistory() {
 }
 
 function renderAdminDashboard() {
-  // คำนวณสถิติจาก DB.orders จริง
-  const today = new Date().toLocaleDateString('th-TH');
+  // วันนี้ในรูปแบบ YYYY-MM-DD สำหรับเปรียบเทียบกับ deliveryDate
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  // ออเดอร์วันนี้ = สร้างวันนี้
   const todayOrders = DB.orders.filter(o => {
-    const d = new Date(o.createdAt).toLocaleDateString('th-TH');
-    return d === today;
+    const d = new Date(o.createdAt);
+    const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return dStr === todayStr;
   });
   const todayRevenue = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
-  const pendingSlip = DB.orders.filter(o => o.status === 'delivered').length;
-  const todayDelivery = DB.orders.filter(o => o.deliveryMethod === 'delivery' && ['ready','paid','production','delivered'].includes(o.status));
+
+  // รอตรวจสอบ = pending + โอนเงิน (สลิปรอยืนยัน)
+  const pendingSlip = DB.orders.filter(o =>
+    o.status === 'pending' && (o.payMethod === 'transfer' || o.paymentMethod === 'transfer')
+  ).length;
+
+  // ส่งวันนี้ = deliveryDate ตรงกับวันนี้ + มอบหมาย rider แล้ว (มี riderId)
+  const todayDelivery = DB.orders.filter(o => {
+    const dDate = (o.deliveryDate || '').split('T')[0];
+    return o.deliveryMethod === 'delivery' &&
+      dDate === todayStr &&
+      o.riderId &&
+      ['ready','production','delivered'].includes(o.status);
+  });
   const deliveredToday = todayDelivery.filter(o => o.status === 'delivered').length;
 
   document.getElementById('dashTodayOrders').textContent = todayOrders.length;
@@ -1412,6 +1428,7 @@ function loadOrders() {
         assignedAt: o.assignedAt || '',
         deliveredBy: o.deliveredBy || o.riderId || '',
         deliveredAt: o.deliveredAt || '',
+        completedAt: o.completedAt || '',
         slipUrl: o.slipUrl || '',
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
@@ -1772,6 +1789,7 @@ function loadOrdersForPayments() {
         assignedAt: o.assignedAt || '',
         deliveredBy: o.deliveredBy || o.riderId || '',
         deliveredAt: o.deliveredAt || '',
+        completedAt: o.completedAt || '',
         slipUrl: o.slipUrl || '',
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
@@ -1797,8 +1815,8 @@ function renderPayments() {
         <td class="fw-bold">฿${o.total.toLocaleString()}</td>
         <td>${isTransferPayment(o) ? '🏦 โอนเงิน' : '💵 เงินสด'}</td>
         <td style="font-size:0.82rem;color:var(--text-muted);">
-          ${o.deliveredBy ? `👤 ${o.deliveredBy}` : (o.riderId ? `👤 ${o.riderId}` : '-')}<br>
-          ${o.deliveredAt || o.createdAt || ''}
+          👤 ${o.deliveredBy || o.riderId || '-'}<br>
+          ${o.completedAt ? new Date(o.completedAt).toLocaleString('th-TH') : (o.deliveredAt || '-')}
         </td>
         <td>${isTransferPayment(o)
           ? `<button class="btn btn-sm btn-secondary" onclick="showToast('แสดงสลิป (จำลอง)', 'success')">ดูสลิป</button>`
