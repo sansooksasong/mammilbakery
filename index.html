@@ -1177,25 +1177,15 @@ function placeOrder() {
   const items = Object.values(cart).map(i => ({...i}));
   let total = items.reduce((s, i) => s + i.price * i.qty, 0);
 
-  const orderId = 'ORD-' + Date.now().toString().slice(-6);
-  const order = {
-    id: orderId, customer: name, phone, items, total, status: 'pending',
-    payMethod, deliveryDate: date, deliveryMethod: method,
-    address: document.getElementById('deliveryAddress').value.trim(),
-    note: document.getElementById('custNote').value.trim(),
-    createdAt: new Date().toLocaleString('th-TH'),
-    slipUrl: ''
-  };
-  // แสดงหน้าสำเร็จทันที (optimistic UI)
-  document.getElementById('successOrderId').textContent = orderId;
+  // แสดงสถานะ "กำลังบันทึก" ก่อน
+  document.getElementById('successOrderId').textContent = 'กำลังบันทึก...';
   document.getElementById('successName').textContent = name;
   document.getElementById('successTotal').textContent = `฿${total.toLocaleString()}`;
   cart = {};
   updateCartUI();
-  showToast('สั่งซื้อสำเร็จ! 🎉', 'success');
   goTo('page-success');
 
-  // ส่งข้อมูลไป Google Sheets จริง (GET เพื่อหลีกเลี่ยง CORS preflight)
+  // ส่งข้อมูลไป GAS และรับ orderId จริงกลับมา
   const orderItems = items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price }));
   const params = new URLSearchParams({
     action: 'createOrder',
@@ -1205,8 +1195,8 @@ function placeOrder() {
     total,
     deliveryDate: date,
     deliveryMethod: method,
-    address: order.address || '',
-    note: order.note || '',
+    address: document.getElementById('deliveryAddress')?.value.trim() || '',
+    note: document.getElementById('custNote')?.value.trim() || '',
     paymentMethod: payMethod,
   });
 
@@ -1214,13 +1204,27 @@ function placeOrder() {
   .then(r => r.json())
   .then(res => {
     if (res.success) {
-      DB.orders.unshift({ ...order, id: res.orderId || orderId });
-      console.log('✅ Order saved:', res.orderId);
+      // ใช้ orderId จาก GAS เท่านั้น — ID เดียวตลอด process
+      const realOrderId = res.orderId;
+      document.getElementById('successOrderId').textContent = realOrderId;
+      showToast('สั่งซื้อสำเร็จ! 🎉', 'success');
+      const order = {
+        id: realOrderId, customer: name, phone, items: orderItems,
+        total, status: 'pending', payMethod,
+        deliveryDate: date, deliveryMethod: method,
+        address: params.get('address'), note: params.get('note'),
+        createdAt: new Date().toISOString(), slipUrl: ''
+      };
+      DB.orders.unshift(order);
     } else {
-      console.error('❌ GAS error:', res.error);
+      document.getElementById('successOrderId').textContent = 'บันทึกไม่สำเร็จ';
+      showToast('เกิดข้อผิดพลาด: ' + (res.error || 'ไม่ทราบสาเหตุ'), 'error');
     }
   })
-  .catch(err => console.error('❌ fetch error:', err));
+  .catch(() => {
+    document.getElementById('successOrderId').textContent = 'ไม่สามารถเชื่อมต่อได้';
+    showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+  });
 }
 
 // =========================================
@@ -1397,7 +1401,7 @@ function loadOrders() {
         total: parseFloat(o.total) || 0,
         status: normalizeStatus(o.status),
         payMethod: normalizePayMethod(o.paymentMethod),
-        deliveryDate: o.deliveryDate,
+        deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
         deliveryMethod: o.deliveryMethod,
         address: o.address,
         note: o.note,
@@ -1437,7 +1441,7 @@ function renderOrders() {
       <td>${o.customer}<br><small class="text-muted">${o.phone}</small></td>
       <td>${o.items.map(i => `${i.name}×${i.qty}`).join(', ')}</td>
       <td class="fw-bold">฿${o.total.toLocaleString()}</td>
-      <td>${o.deliveryDate}</td>
+      <td>${o.deliveryDate ? o.deliveryDate.split('T')[0] : '-'}</td>
       <td><span class="badge badge-${o.status}">${statusLabel(o.status)}</span></td>
       <td>
         <div class="td-actions">
@@ -1963,7 +1967,7 @@ function renderRiderPage() {
     return o.deliveryMethod === 'delivery' &&
       orderDate === selectedDate &&
       matchRider &&
-      ['ready','paid','production'].includes(o.status);
+      ['ready','paid','production','delivered'].includes(o.status);
   });
 
   document.getElementById('riderDeliveryCount').textContent = deliveries.length + ' รายการ';
@@ -2003,7 +2007,7 @@ function renderRiderPage() {
       <div class="customer-info">
         👤 <strong>${o.customer}</strong><br>
         📞 <a href="tel:${o.phone}" style="color:var(--primary);">${o.phone}</a><br>
-        📅 ส่งวันที่ ${o.deliveryDate}<br>
+        📅 ส่งวันที่ ${o.deliveryDate ? o.deliveryDate.split('T')[0] : '-'}<br>
         📍 ${o.address || '-'}
         ${o.riderNote ? `<br><span style="color:var(--primary-dark);font-weight:600;">📝 ${o.riderNote}</span>` : ''}
       </div>
@@ -2011,6 +2015,14 @@ function renderRiderPage() {
         ${o.items.map(i => `<div class="item-row"><span>${i.name}</span><span>×${i.qty} = ฿${(i.price*i.qty).toLocaleString()}</span></div>`).join('')}
         <div class="item-row fw-bold"><span>ยอดรวม</span><span class="text-primary">฿${o.total.toLocaleString()}</span></div>
       </div>
+      ${o.status === 'delivered' ? `
+      <div style="background:#D4EDDA;border-radius:8px;padding:10px 14px;text-align:center;color:#155724;font-weight:600;">
+        ✅ ส่งสำเร็จแล้ว — ไม่สามารถแก้ไขได้
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="printBill('${o.id}')">🖨️ พิมพ์บิล</button>
+      </div>
+      ` : `
       <div class="form-group" style="margin:0.75rem 0 0.5rem;">
         <label class="form-label">💳 วิธีชำระเงิน</label>
         <select class="form-control" id="riderPayMethod_${o.id}">
@@ -2023,6 +2035,7 @@ function renderRiderPage() {
         <button class="btn btn-primary btn-sm" onclick="openDeliveryModal('${o.id}')">📋 แก้ไขรายการ</button>
         <button class="btn btn-success btn-sm" onclick="completeDeliveryWithPayment('${o.id}')">✓ ส่งสำเร็จ</button>
       </div>
+      `}
     </div>
   `).join('');
 }
