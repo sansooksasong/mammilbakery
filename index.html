@@ -945,7 +945,7 @@ function goTo(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const pg = document.getElementById(pageId);
   if (pg) { pg.classList.add('active'); pg.scrollTop = 0; }
-  if (pageId === 'page-admin') { renderAdminDashboard(); loadOrders(); }
+  if (pageId === 'page-admin') { loadOrders(); }
   if (pageId === 'page-rider') renderRiderPage();
   if (pageId === 'page-owner') renderOwnerPage();
   if (pageId === 'page-customer') renderProducts();
@@ -1377,7 +1377,38 @@ function renderOrders() {
 function quickStatusUpdate(orderId, status) {
   if (!status) return;
   const order = DB.orders.find(o => o.id === orderId);
-  if (order) { order.status = status; renderOrders(); showToast(`อัพเดทสถานะ ${orderId} → ${statusLabel(status)}`, 'success'); }
+  if (!order) return;
+
+  // อัปเดต memory ทันที (optimistic)
+  const oldStatus = order.status;
+  order.status = status;
+  renderOrders();
+  showToast(`กำลังบันทึก...`, 'info');
+
+  // บันทึกไป GAS จริง
+  const params = new URLSearchParams({
+    action: 'updateOrder',
+    token: currentUser?.token || '',
+    orderId,
+    status,
+  });
+  fetch(`${GAS_URL}?${params}`)
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        showToast(`✅ อัพเดทสถานะ ${orderId} → ${statusLabel(status)}`, 'success');
+      } else {
+        // rollback ถ้า error
+        order.status = oldStatus;
+        renderOrders();
+        showToast(`❌ บันทึกไม่สำเร็จ: ${res.error}`, 'error');
+      }
+    })
+    .catch(() => {
+      order.status = oldStatus;
+      renderOrders();
+      showToast('❌ ไม่สามารถเชื่อมต่อได้', 'error');
+    });
 }
 
 function viewOrder(id) {
