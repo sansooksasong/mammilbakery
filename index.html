@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🥐 สั่งขนม - ร้านเบเกอรี่</title>
+<title>🥐 สั่งขนม - ร้านแหม่มเบเกอรี่</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1613,10 +1613,35 @@ function renderAssign() {
 function assignRider(orderId) {
   const riderEl = document.getElementById('rider_' + orderId);
   if (!riderEl.value) { showToast('กรุณาเลือกพนักงานส่ง', 'error'); return; }
-  showToast(`มอบหมายงาน ${orderId} ให้ ${riderEl.options[riderEl.selectedIndex].text} แล้ว`, 'success');
+  const riderId = riderEl.value;
+  const riderName = riderEl.options[riderEl.selectedIndex].text;
+
+  // อัปเดต memory ทันที
   const order = DB.orders.find(o => o.id === orderId);
-  if (order) order.status = 'delivered';
+  if (order) { order.status = 'ready'; order.riderId = riderId; }
   renderAssign();
+  showToast(`กำลังมอบหมายงาน...`, 'info');
+
+  // บันทึกไป GAS จริง
+  const params = new URLSearchParams({
+    action: 'updateOrder',
+    token: currentUser?.token || '',
+    orderId,
+    status: 'ready',
+    riderId,
+  });
+  fetch(`${GAS_URL}?${params}`)
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        showToast(`✅ มอบหมายงาน ${orderId} ให้ ${riderName} แล้ว`, 'success');
+      } else {
+        // rollback
+        if (order) { order.status = 'ready'; order.riderId = ''; }
+        showToast(`❌ บันทึกไม่สำเร็จ: ${res.error}`, 'error');
+      }
+    })
+    .catch(() => showToast('❌ ไม่สามารถเชื่อมต่อได้', 'error'));
 }
 
 // PAYMENTS
