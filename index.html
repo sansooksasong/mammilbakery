@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🥐 สั่งขนม - ร้านเบเกอรี่</title>
+<title>🥐 สั่งขนม - ร้านแหม่มเบเกอรี่</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -284,7 +284,7 @@
     <div class="login-logo">
       <div style="font-size:2.5rem;margin-bottom:0.5rem;">🥐</div>
       <h1>เข้าสู่ระบบ</h1>
-      <p style="font-size:0.85rem;color:var(--text-muted);">ระบบจัดการร้านเบเกอรี่</p>
+      <p style="font-size:0.85rem;color:var(--text-muted);">ระบบจัดการร้านแหม่มเบเกอรี่</p>
     </div>
     <div class="form-group">
       <label class="form-label">ชื่อผู้ใช้</label>
@@ -947,7 +947,7 @@ function goTo(pageId) {
   if (pg) { pg.classList.add('active'); pg.scrollTop = 0; }
   if (pageId === 'page-admin') { loadOrders(); }
   if (pageId === 'page-rider') loadOrdersForRider();
-  if (pageId === 'page-owner') renderOwnerPage();
+  if (pageId === 'page-owner') loadOrdersForOwner();
   if (pageId === 'page-customer') renderProducts();
   if (pageId === 'page-checkout') renderCheckout();
 }
@@ -1232,7 +1232,7 @@ function adminTab(tab, el) {
   if (tab === 'products') renderProducts_admin();
   if (tab === 'production') renderProduction();
   if (tab === 'delivery-assign') renderAssign();
-  if (tab === 'payments') renderPayments();
+  if (tab === 'payments') loadOrdersForPayments();
   if (tab === 'reports') renderReport();
   return false;
 }
@@ -1654,8 +1654,38 @@ function assignRider(orderId) {
 }
 
 // PAYMENTS
+function loadOrdersForPayments() {
+  if (!currentUser?.token) return;
+  fetch(`${GAS_URL}?action=getOrders&token=${encodeURIComponent(currentUser.token)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!Array.isArray(data)) return;
+      DB.orders = data.map(o => ({
+        id: o.id,
+        customer: o.customerName,
+        phone: o.customerPhone,
+        total: parseFloat(o.total) || 0,
+        status: o.status,
+        payMethod: o.paymentMethod,
+        deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
+        deliveryMethod: o.deliveryMethod,
+        address: o.address, note: o.note,
+        createdAt: o.createdAt, riderId: o.riderId || '',
+        slipUrl: o.slipUrl || '',
+        items: Array.isArray(o.items) ? o.items.map(i => ({
+          id: i.productId || i.id,
+          name: i.productName || i.name,
+          qty: parseInt(i.quantity || i.qty) || 0,
+          price: parseFloat(i.unitPrice || i.price) || 0,
+        })) : [],
+      }));
+      renderPayments();
+    })
+    .catch(() => renderPayments());
+}
+
 function renderPayments() {
-  const orders = DB.orders.filter(o => o.status === 'pending' && o.payMethod === 'transfer');
+  const orders = DB.orders.filter(o => o.status === 'pending' && (o.payMethod === 'transfer' || o.paymentMethod === 'transfer'));
   document.getElementById('paymentTableBody').innerHTML = orders.length === 0
     ? `<tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">ไม่มีรายการรอตรวจสอบ</td></tr>`
     : orders.map(o => `
@@ -2064,6 +2094,37 @@ function completeDelivery(id) {
 // =========================================
 // OWNER DASHBOARD
 // =========================================
+function loadOrdersForOwner() {
+  if (!currentUser?.token) return;
+  fetch(`${GAS_URL}?action=getOrders&token=${encodeURIComponent(currentUser.token)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!Array.isArray(data)) return;
+      DB.orders = data.map(o => ({
+        id: o.id,
+        customer: o.customerName,
+        phone: o.customerPhone,
+        total: parseFloat(o.total) || 0,
+        status: o.status,
+        payMethod: o.paymentMethod,
+        deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
+        deliveryMethod: o.deliveryMethod,
+        address: o.address,
+        note: o.note,
+        createdAt: o.createdAt,
+        riderId: o.riderId || '',
+        items: Array.isArray(o.items) ? o.items.map(i => ({
+          id: i.productId || i.id,
+          name: i.productName || i.name,
+          qty: parseInt(i.quantity || i.qty) || 0,
+          price: parseFloat(i.unitPrice || i.price) || 0,
+        })) : [],
+      }));
+      renderOwnerPage();
+    })
+    .catch(() => renderOwnerPage());
+}
+
 function renderOwnerPage() {
   renderOwnerCharts();
   renderOwnerTopProducts();
