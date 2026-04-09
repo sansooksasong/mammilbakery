@@ -1245,7 +1245,7 @@ function renderAdminDashboard() {
     return d === today;
   });
   const todayRevenue = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
-  const pendingSlip = DB.orders.filter(o => o.status === 'pending' && o.payMethod === 'transfer').length;
+  const pendingSlip = DB.orders.filter(o => o.status === 'pending').length;
   const todayDelivery = DB.orders.filter(o => o.deliveryMethod === 'delivery' && ['ready','paid','production','delivered'].includes(o.status));
   const deliveredToday = todayDelivery.filter(o => o.status === 'delivered').length;
 
@@ -1312,6 +1312,18 @@ function normalizePayMethod(val) {
   return 'cash';
 }
 
+function normalizeStatus(val) {
+  const v = (val || '').toString().toLowerCase().trim();
+  // GAS อาจส่งมาเป็น "confirmed" หรือ "new" หรือ "pending"
+  if (v === 'pending' || v === 'confirmed' || v === 'new' || v === '') return 'pending';
+  if (v === 'paid' || v === 'approved' || v === 'payment_confirmed') return 'paid';
+  if (v === 'production' || v === 'preparing' || v === 'processing') return 'production';
+  if (v === 'ready' || v === 'ready_to_ship') return 'ready';
+  if (v === 'delivered' || v === 'completed' || v === 'done') return 'delivered';
+  if (v === 'cancelled' || v === 'canceled' || v === 'rejected') return 'cancelled';
+  return val; // fallback คืนค่าเดิม
+}
+
 function isTransferPayment(o) {
   const v = (o.payMethod || o.paymentMethod || '').toString().toLowerCase();
   return v === 'transfer' || v === 'โอนเงิน' || v === 'bank_transfer' || v.includes('transfer') || v.includes('โอน');
@@ -1331,7 +1343,7 @@ function loadOrders() {
         customer: o.customerName,
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
-        status: o.status,
+        status: normalizeStatus(o.status),
         payMethod: normalizePayMethod(o.paymentMethod),
         deliveryDate: o.deliveryDate,
         deliveryMethod: o.deliveryMethod,
@@ -1676,7 +1688,7 @@ function loadOrdersForPayments() {
         customer: o.customerName,
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
-        status: o.status,
+        status: normalizeStatus(o.status),
         payMethod: normalizePayMethod(o.paymentMethod),
         deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
         deliveryMethod: o.deliveryMethod,
@@ -1696,7 +1708,7 @@ function loadOrdersForPayments() {
 }
 
 function renderPayments() {
-  const orders = DB.orders.filter(o => o.status === 'pending' && isTransferPayment(o));
+  const orders = DB.orders.filter(o => o.status === 'pending');
   document.getElementById('paymentTableBody').innerHTML = orders.length === 0
     ? `<tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">ไม่มีรายการรอตรวจสอบ</td></tr>`
     : orders.map(o => `
@@ -1704,8 +1716,11 @@ function renderPayments() {
         <td><strong class="text-primary">${o.id}</strong></td>
         <td>${o.customer}</td>
         <td class="fw-bold">฿${o.total.toLocaleString()}</td>
-        <td>🏦 โอนเงิน</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="showToast('แสดงสลิป (จำลอง)', 'success')">ดูสลิป</button></td>
+        <td>${isTransferPayment(o) ? '🏦 โอนเงิน' : '💵 เงินสด'}</td>
+        <td>${isTransferPayment(o)
+          ? `<button class="btn btn-sm btn-secondary" onclick="showToast('แสดงสลิป (จำลอง)', 'success')">ดูสลิป</button>`
+          : '<span class="text-muted">-</span>'
+        }</td>
         <td>
           <button class="btn btn-sm btn-success" onclick="approvePayment('${o.id}')">✓ ยืนยัน</button>
           <button class="btn btn-sm btn-danger" onclick="rejectPayment('${o.id}')">✗ ปฏิเสธ</button>
@@ -1832,7 +1847,7 @@ function loadOrdersForRider() {
         customer: o.customerName,
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
-        status: o.status,
+        status: normalizeStatus(o.status),
         payMethod: o.paymentMethod,
         deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
         deliveryMethod: o.deliveryMethod,
@@ -2118,7 +2133,7 @@ function loadOrdersForOwner() {
         customer: o.customerName,
         phone: o.customerPhone,
         total: parseFloat(o.total) || 0,
-        status: o.status,
+        status: normalizeStatus(o.status),
         payMethod: o.paymentMethod,
         deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
         deliveryMethod: o.deliveryMethod,
