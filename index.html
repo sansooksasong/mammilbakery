@@ -1674,7 +1674,34 @@ function renderPayments() {
 
 function approvePayment(id) {
   const o = DB.orders.find(x => x.id === id);
-  if (o) { o.status = 'paid'; renderPayments(); showToast(`ยืนยันชำระ ${id} แล้ว ✓`, 'success'); }
+  if (!o) return;
+  o.status = 'paid';
+  renderPayments();
+
+  // บันทึก status และ payment ลง GAS
+  const params = new URLSearchParams({
+    action: 'updateOrder',
+    token: currentUser?.token || '',
+    orderId: id,
+    status: 'paid',
+    paymentMethod: o.payMethod || 'transfer',
+    deliveryItems: JSON.stringify(
+      (o.items || []).map(i => ({
+        id: i.id, name: i.name, price: i.price,
+        originalQty: i.originalQty || i.qty || 0,
+        deliveredQty: i.qty || 0,
+        returnedQty: 0,
+        isExtra: false,
+      }))
+    ),
+  });
+  fetch(`${GAS_URL}?${params}`)
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) showToast(`✅ ยืนยันชำระ ${id} แล้ว`, 'success');
+      else showToast(`❌ บันทึกไม่สำเร็จ: ${res.error}`, 'error');
+    })
+    .catch(() => showToast('❌ ไม่สามารถเชื่อมต่อได้', 'error'));
 }
 function rejectPayment(id) {
   showToast(`ปฏิเสธการชำระ ${id}`, 'error');
@@ -1967,6 +1994,8 @@ function confirmDelivery(id) {
     token: currentUser?.token || '',
     orderId: id,
     status: 'delivered',
+    riderId: currentUser?.username || '',
+    paymentMethod: payMethod,
     deliveryItems: JSON.stringify(deliveryItems),
   });
   fetch(`${GAS_URL}?${params}`)
