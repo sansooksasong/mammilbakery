@@ -542,7 +542,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>เลขที่</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดรวม</th><th>วันส่ง</th><th>สถานะ</th><th>จัดการ</th>
+                  <th>เลขที่</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดรวม</th><th>วันนัด<br>(ลูกค้า)</th><th>วันส่งจริง<br>(admin)</th><th>สถานะ</th><th>จัดการ</th>
                 </tr>
               </thead>
               <tbody id="orderTableBody"></tbody>
@@ -1437,6 +1437,12 @@ function loadOrders() {
         riderNote: o.riderNote || '',
         customerName: o.customerName || '',
         customerPhone: o.customerPhone || '',
+        originalDeliveryDate: (() => {
+          const d = o.originalDeliveryDate;
+          if (!d) return o.deliveryDate || '';  // fallback = deliveryDate ถ้ายังไม่มี
+          if (typeof d === 'string') return d.split('T')[0];
+          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+        })(),
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
           name: i.productName || i.name,
@@ -1465,7 +1471,8 @@ function renderOrders() {
       <td>${o.customer}<br><small class="text-muted">${o.phone}</small></td>
       <td>${o.items.map(i => `${i.name}×${i.qty}`).join(', ')}</td>
       <td class="fw-bold">฿${o.total.toLocaleString()}</td>
-      <td>${o.deliveryDate ? o.deliveryDate.split('T')[0] : '-'}</td>
+      <td style="font-size:0.82rem;">${o.originalDeliveryDate || o.deliveryDate || '-'}</td>
+      <td style="font-size:0.82rem;${o.originalDeliveryDate && o.deliveryDate && o.originalDeliveryDate !== o.deliveryDate ? 'color:var(--primary);font-weight:600;' : ''}">${o.deliveryDate ? o.deliveryDate.split('T')[0] : '-'}${o.originalDeliveryDate && o.deliveryDate && o.originalDeliveryDate !== o.deliveryDate ? ' ✏️' : ''}</td>
       <td><span class="badge badge-${o.status}">${statusLabel(o.status)}</span></td>
       <td>
         <div class="td-actions">
@@ -1809,6 +1816,12 @@ function loadOrdersForPayments() {
         riderNote: o.riderNote || '',
         customerName: o.customerName || '',
         customerPhone: o.customerPhone || '',
+        originalDeliveryDate: (() => {
+          const d = o.originalDeliveryDate;
+          if (!d) return o.deliveryDate || '';  // fallback = deliveryDate ถ้ายังไม่มี
+          if (typeof d === 'string') return d.split('T')[0];
+          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+        })(),
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
           name: i.productName || i.name,
