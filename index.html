@@ -1430,6 +1430,9 @@ function loadOrders() {
         deliveredAt: o.deliveredAt || '',
         completedAt: o.completedAt || '',
         slipUrl: o.slipUrl || '',
+        riderNote: o.riderNote || '',
+        customerName: o.customerName || '',
+        customerPhone: o.customerPhone || '',
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
           name: i.productName || i.name,
@@ -1523,7 +1526,7 @@ function viewOrder(id) {
     <div class="grid-2 mb-2">
       <div><div class="form-label">ลูกค้า</div><strong>${order.customer}</strong></div>
       <div><div class="form-label">โทร</div><strong>${order.phone}</strong></div>
-      <div><div class="form-label">วันส่ง</div><strong>${order.deliveryDate}</strong></div>
+      <div><div class="form-label">วันส่ง</div><strong>${order.deliveryDate ? order.deliveryDate.split('T')[0] : '-'}</strong></div>
       <div><div class="form-label">วิธีรับ</div><strong>${order.deliveryMethod === 'delivery' ? '🚚 ส่งบ้าน' : '🏪 รับเอง'}</strong></div>
     </div>
     ${order.address ? `<div class="form-group"><div class="form-label">ที่อยู่</div><p>${order.address}</p></div>` : ''}
@@ -1799,6 +1802,9 @@ function loadOrdersForPayments() {
         deliveredAt: o.deliveredAt || '',
         completedAt: o.completedAt || '',
         slipUrl: o.slipUrl || '',
+        riderNote: o.riderNote || '',
+        customerName: o.customerName || '',
+        customerPhone: o.customerPhone || '',
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
           name: i.productName || i.name,
@@ -2041,9 +2047,9 @@ function renderRiderPage() {
         ${[...o.items].sort((a,b) => (a.id||'').localeCompare(b.id||'', undefined, {numeric:true})).map(i => `<div class="item-row"><span>${i.name}</span><span>×${i.qty} = ฿${(i.price*i.qty).toLocaleString()}</span></div>`).join('')}
         <div class="item-row fw-bold"><span>ยอดรวม</span><span class="text-primary">฿${o.total.toLocaleString()}</span></div>
       </div>
-      ${o.status === 'delivered' ? `
+      ${(o.status === 'delivered' || o.status === 'paid') ? `
       <div style="background:#D4EDDA;border-radius:8px;padding:10px 14px;text-align:center;color:#155724;font-weight:600;">
-        ✅ ส่งสำเร็จแล้ว — ไม่สามารถแก้ไขได้
+        ${o.status === 'paid' ? '✅ ชำระเงินแล้ว — ไม่สามารถแก้ไขได้' : '✅ ส่งสำเร็จแล้ว — ไม่สามารถแก้ไขได้'}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
         <button class="btn btn-secondary btn-sm" onclick="printBill('${o.id}')">🖨️ พิมพ์บิล</button>
