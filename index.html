@@ -412,12 +412,12 @@
           <select class="form-control" id="paymentMethod">
             <option value="">-- เลือกวิธีชำระ --</option>
             <option value="transfer">🏦 โอนเงิน</option>
-            <option value="cash">💵 เงินสด</option>
+            <option value="cash">💵 เงินสด (ชำระกับไรเดอร์)</option>
           </select>
         </div>
         <div style="background:var(--primary-light);border-radius:var(--radius-sm);padding:12px;font-size:0.88rem;color:var(--primary-dark);">
-          📌 <strong>หมายเหตุ:</strong> การชำระเงินจะดำเนินการโดยพนักงานส่งสินค้า <br>
-          ไม่ว่าจะโอนเงินหรือเงินสด
+          📌 <strong>หมายเหตุ:</strong> การชำระเงินจะดำเนินการโดยพนักงานส่งสินค้า (Rider)<br>
+          ไม่ว่าจะโอนเงินหรือเงินสด ไรเดอร์จะเป็นผู้รับและยืนยันการชำระ
         </div>
         <div class="flex-between" style="padding:12px;background:var(--bg);border-radius:var(--radius-sm);margin-top:0.75rem;">
           <span>ยอดรวม</span>
@@ -1306,10 +1306,8 @@ function renderAdminDashboard() {
   });
   const todayRevenue = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
 
-  // รอตรวจสอบ = pending + โอนเงิน (สลิปรอยืนยัน)
-  const pendingSlip = DB.orders.filter(o =>
-    o.status === 'pending' && (o.payMethod === 'transfer' || o.paymentMethod === 'transfer')
-  ).length;
+  // รอตรวจสอบ = ทุก order ที่ status = pending (ยังไม่ได้ดำเนินการ ไม่ว่าจะชำระวิธีไหน)
+  const pendingSlip = DB.orders.filter(o => o.status === 'pending').length;
 
   // ส่งวันนี้ = deliveryDate ตรงกับวันนี้ + มอบหมาย rider แล้ว (มี riderId)
   const todayDelivery = DB.orders.filter(o => {
@@ -2567,5 +2565,3 @@ updateOfflineBadge();
 <div id="printBillArea"></div>
 </body>
 </html>
-
-
