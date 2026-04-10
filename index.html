@@ -1016,7 +1016,7 @@ function renderProducts(catFilter = null) {
   if (catFilter !== null) currentCatFilter = catFilter;
   const grid = document.getElementById('productGrid');
   const searchVal = (document.getElementById('customerSearch')?.value || '').toLowerCase().trim();
-  let products = DB.products.filter(p => p.status === 'active');
+  let products = DB.products.filter(p => p.status === 'active').sort((a,b) => (a.id||'').localeCompare(b.id||'', undefined, {numeric:true}));
   // กรองตามกลุ่มราคา (tab value = price string)
   if (currentCatFilter && currentCatFilter !== 'all') {
     const targetPrice = parseInt(currentCatFilter);
@@ -1700,7 +1700,7 @@ function renderAssign() {
         <span class="delivery-id">${o.id}</span>
         <span class="badge badge-ready">${statusLabel(o.status)}</span>
       </div>
-      <div class="customer-info">👤 ${o.customer} | 📞 ${o.phone}<br>📍 ${o.address}</div>
+      <div class="customer-info">👤 ${o.customer} | 📞 ${o.phone}<br>📅 วันส่งเดิม: <strong>${o.deliveryDate || '-'}</strong><br>📍 ${o.address}</div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
         <select class="form-control" id="rider_${o.id}" style="flex:1;">
           <option value="">-- เลือกพนักงานส่ง --</option>
@@ -1708,6 +1708,10 @@ function renderAssign() {
             `<option value="${u.username}">${u.name}</option>`
           ).join('')}
         </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+        <label style="font-size:0.85rem;color:var(--text-muted);white-space:nowrap;">📅 นัดส่งวันที่</label>
+        <input type="date" class="form-control" id="assignDate_${o.id}" value="${o.deliveryDate || ''}" style="flex:1;font-size:0.88rem;">
       </div>
       <div style="margin-bottom:8px;">
         <input class="form-control" id="riderNote_${o.id}" placeholder="📝 หมายเหตุถึง rider (ถ้ามี)" style="font-size:0.88rem;">
@@ -1725,9 +1729,11 @@ function assignRider(orderId) {
   const riderId = riderEl.value;
   const riderName = riderEl.options[riderEl.selectedIndex].text;
 
-  // อ่าน riderNote ก่อน renderAssign() ทำลาย DOM
+  // อ่านค่าทั้งหมดก่อน renderAssign() ทำลาย DOM
   const riderNoteEl = document.getElementById('riderNote_' + orderId);
   const riderNote = riderNoteEl ? riderNoteEl.value.trim() : '';
+  const assignDateEl = document.getElementById('assignDate_' + orderId);
+  const assignDate = assignDateEl ? assignDateEl.value : '';
 
   // อัปเดต memory ทันที
   const order = DB.orders.find(o => o.id === orderId);
@@ -1738,6 +1744,7 @@ function assignRider(orderId) {
     order.riderNote = riderNote;
     order.assignedBy = currentUser?.username || '';
     order.assignedAt = new Date().toLocaleString('th-TH');
+    if (assignDate) order.deliveryDate = assignDate; // อัปเดตวันนัดส่ง
   }
   renderAssign();
   showToast(`กำลังมอบหมายงาน...`, 'info');
@@ -1751,6 +1758,7 @@ function assignRider(orderId) {
     riderNote,
     assignedBy: currentUser?.username || '',
     assignedAt: new Date().toLocaleString('th-TH'),
+    ...(assignDate ? { deliveryDate: assignDate } : {}),
   });
   fetch(`${GAS_URL}?${params}`)
     .then(r => r.json())
@@ -2030,7 +2038,7 @@ function renderRiderPage() {
         ${o.riderNote ? `<br><span style="color:var(--primary-dark);font-weight:600;">📝 ${o.riderNote}</span>` : ''}
       </div>
       <div class="items-list">
-        ${o.items.map(i => `<div class="item-row"><span>${i.name}</span><span>×${i.qty} = ฿${(i.price*i.qty).toLocaleString()}</span></div>`).join('')}
+        ${[...o.items].sort((a,b) => (a.id||'').localeCompare(b.id||'', undefined, {numeric:true})).map(i => `<div class="item-row"><span>${i.name}</span><span>×${i.qty} = ฿${(i.price*i.qty).toLocaleString()}</span></div>`).join('')}
         <div class="item-row fw-bold"><span>ยอดรวม</span><span class="text-primary">฿${o.total.toLocaleString()}</span></div>
       </div>
       ${o.status === 'delivered' ? `
@@ -2072,7 +2080,7 @@ function openDeliveryModal(id) {
     </div>
     <p class="form-label" style="margin-bottom:6px;">📦 รายการสินค้า (เพิ่ม/ลด/คืน)</p>
     <div id="riderItemsEdit">
-      ${order.items.map((item, idx) => `
+      ${[...order.items].sort((a,b) => (a.id||'').localeCompare(b.id||'', undefined, {numeric:true})).map((item, idx) => `
         <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border);" id="riderItem_${idx}">
           <div style="flex:1;font-size:0.88rem;">
             <div>${item.name}</div>
@@ -2349,9 +2357,13 @@ function renderOwnerCustomers() {
   // รวมออเดอร์จริงตามเบอร์โทร
   const custMap = {};
   DB.orders.forEach(o => {
-    if (!custMap[o.phone]) custMap[o.phone] = { name: o.customer, phone: o.phone, orders: 0, total: 0 };
-    custMap[o.phone].orders++;
-    custMap[o.phone].total += o.total || 0;
+    // ใช้ customerPhone เป็น key, ดึง customerName จาก field ที่ถูกต้อง
+    const phone = o.customerPhone || o.phone || '';
+    const name = o.customerName || o.customer || '';
+    if (!phone) return;
+    if (!custMap[phone]) custMap[phone] = { name, phone, orders: 0, total: 0 };
+    custMap[phone].orders++;
+    custMap[phone].total += o.total || 0;
   });
   const customers = Object.values(custMap).sort((a,b) => b.total - a.total).slice(0, 10);
   document.getElementById('ownerCustomers').innerHTML = customers.length === 0
