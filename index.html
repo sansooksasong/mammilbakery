@@ -1415,7 +1415,13 @@ function loadOrders() {
         total: parseFloat(o.total) || 0,
         status: normalizeStatus(o.status),
         payMethod: normalizePayMethod(o.paymentMethod),
-        deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
+        deliveryDate: (() => {
+          const d = o.deliveryDate;
+          if (!d) return '';
+          if (typeof d === 'string') return d.split('T')[0];
+          // กรณี GAS ส่งกลับเป็น Date object หรือ number (milliseconds)
+          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+        })(),
         deliveryMethod: o.deliveryMethod,
         address: o.address,
         note: o.note,
@@ -1962,7 +1968,13 @@ function loadOrdersForRider() {
         total: parseFloat(o.total) || 0,
         status: normalizeStatus(o.status),
         payMethod: normalizePayMethod(o.paymentMethod),
-        deliveryDate: o.deliveryDate ? o.deliveryDate.split('T')[0] : '',
+        deliveryDate: (() => {
+          const d = o.deliveryDate;
+          if (!d) return '';
+          if (typeof d === 'string') return d.split('T')[0];
+          // กรณี GAS ส่งกลับเป็น Date object หรือ number (milliseconds)
+          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+        })(),
         deliveryMethod: o.deliveryMethod,
         address: o.address,
         note: o.note,
