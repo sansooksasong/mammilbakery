@@ -678,7 +678,7 @@
         <span style="font-weight:600;font-family:'Mitr',sans-serif;">เลือกวันนัดส่ง</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="date" id="riderDateFilter" class="form-control" style="flex:1;min-width:160px;" onchange="renderRiderPage()">
+        <input type="date" id="riderDateFilter" class="form-control" style="flex:1;min-width:160px;" onchange="loadOrdersForRider()">
         <button class="btn btn-secondary btn-sm" onclick="setRiderDate(0)">วันนี้</button>
         <button class="btn btn-secondary btn-sm" onclick="setRiderDate(1)">พรุ่งนี้</button>
         <button class="btn btn-secondary btn-sm" onclick="setRiderDate(2)">มะรืน</button>
@@ -1946,7 +1946,7 @@ function setRiderDate(daysOffset) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   document.getElementById('riderDateFilter').value = `${yyyy}-${mm}-${dd}`;
-  renderRiderPage();
+  loadOrdersForRider(); // โหลดใหม่จาก GAS ทุกครั้งที่เปลี่ยนวัน
 }
 
 function loadUsers() {
@@ -1969,6 +1969,9 @@ function loadUsers() {
 
 function loadOrdersForRider() {
   if (!currentUser?.token) return;
+  // แสดง loading ขณะโหลด
+  const countEl = document.getElementById('riderDeliveryCount');
+  if (countEl) countEl.textContent = 'กำลังโหลด...';
   const url = `${GAS_URL}?action=getOrders&token=${encodeURIComponent(currentUser.token)}`;
   fetch(url)
     .then(r => r.json())
