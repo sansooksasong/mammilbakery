@@ -678,7 +678,7 @@
         <span style="font-weight:600;font-family:'Mitr',sans-serif;">เลือกวันนัดส่ง</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="date" id="riderDateFilter" class="form-control" style="flex:1;min-width:160px;" onchange="loadOrdersForRider()">
+        <input type="date" id="riderDateFilter" class="form-control" style="flex:1;min-width:160px;" onchange="renderRiderPage()">
         <button class="btn btn-secondary btn-sm" onclick="setRiderDate(0)">วันนี้</button>
         <button class="btn btn-secondary btn-sm" onclick="setRiderDate(1)">พรุ่งนี้</button>
         <button class="btn btn-secondary btn-sm" onclick="setRiderDate(2)">มะรืน</button>
@@ -1419,13 +1419,8 @@ function loadOrders() {
           const d = o.deliveryDate;
           if (!d) return '';
           if (typeof d === 'string') return d.split('T')[0];
+          // กรณี GAS ส่งกลับเป็น Date object หรือ number (milliseconds)
           try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
-        })(),
-        assignedDeliveryDate: (() => {
-          const d = o.assignedDeliveryDate;
-          if (!d) return '';
-          if (typeof d === 'string') return d.split('T')[0];
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return ''; }
         })(),
         deliveryMethod: o.deliveryMethod,
         address: o.address,
@@ -1442,12 +1437,11 @@ function loadOrders() {
         riderNote: o.riderNote || '',
         customerName: o.customerName || '',
         customerPhone: o.customerPhone || '',
-        originalDeliveryDate: o.deliveryDate ? (typeof o.deliveryDate === 'string' ? o.deliveryDate.split('T')[0] : (() => { try { return new Date(o.deliveryDate).toISOString().split('T')[0]; } catch(e) { return ''; } })()) : '',
-        assignedDeliveryDate: (() => {
-          const d = o.assignedDeliveryDate;
-          if (!d) return '';
+        originalDeliveryDate: (() => {
+          const d = o.originalDeliveryDate;
+          if (!d) return '';  // ถ้าไม่มีให้ว่าง ไม่ fallback ไปใช้ raw deliveryDate (อาจเป็น Date object)
           if (typeof d === 'string') return d.split('T')[0];
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return ''; }
+          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
         })(),
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
@@ -1477,8 +1471,8 @@ function renderOrders() {
       <td>${o.customer}<br><small class="text-muted">${o.phone}</small></td>
       <td>${o.items.map(i => `${i.name}×${i.qty}`).join(', ')}</td>
       <td class="fw-bold">฿${o.total.toLocaleString()}</td>
-      <td style="font-size:0.82rem;">${o.originalDeliveryDate || '-'}</td>
-      <td style="font-size:0.82rem;${o.assignedDeliveryDate && o.assignedDeliveryDate !== o.originalDeliveryDate ? 'color:var(--primary);font-weight:600;' : ''}">${o.assignedDeliveryDate || o.originalDeliveryDate || '-'}${o.assignedDeliveryDate && o.assignedDeliveryDate !== o.originalDeliveryDate ? ' ✏️' : ''}</td>
+      <td style="font-size:0.82rem;">${o.originalDeliveryDate ? o.originalDeliveryDate.split('T')[0] : (o.deliveryDate ? o.deliveryDate.split('T')[0] : '-')}</td>
+      <td style="font-size:0.82rem;${o.originalDeliveryDate && o.deliveryDate && o.originalDeliveryDate.split('T')[0] !== o.deliveryDate.split('T')[0] ? 'color:var(--primary);font-weight:600;' : ''}">${o.deliveryDate ? o.deliveryDate.split('T')[0] : '-'}${o.originalDeliveryDate && o.deliveryDate && o.originalDeliveryDate.split('T')[0] !== o.deliveryDate.split('T')[0] ? ' ✏️' : ''}</td>
       <td><span class="badge badge-${o.status}">${statusLabel(o.status)}</span></td>
       <td>
         <div class="td-actions">
@@ -1720,7 +1714,7 @@ function renderAssign() {
         <span class="delivery-id">${o.id}</span>
         <span class="badge badge-ready">${statusLabel(o.status)}</span>
       </div>
-      <div class="customer-info">👤 ${o.customer} | 📞 ${o.phone}<br>📅 ลูกค้านัดส่ง: <strong>${o.originalDeliveryDate || '-'}</strong><br>📍 ${o.address}</div>
+      <div class="customer-info">👤 ${o.customer} | 📞 ${o.phone}<br>📅 วันส่งเดิม: <strong>${o.deliveryDate || '-'}</strong><br>📍 ${o.address}</div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
         <select class="form-control" id="rider_${o.id}" style="flex:1;">
           <option value="">-- เลือกพนักงานส่ง --</option>
@@ -1731,7 +1725,7 @@ function renderAssign() {
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
         <label style="font-size:0.85rem;color:var(--text-muted);white-space:nowrap;">📅 นัดส่งวันที่</label>
-        <input type="date" class="form-control" id="assignDate_${o.id}" value="${o.assignedDeliveryDate || o.originalDeliveryDate || ''}" style="flex:1;font-size:0.88rem;">
+        <input type="date" class="form-control" id="assignDate_${o.id}" value="${o.deliveryDate || ''}" style="flex:1;font-size:0.88rem;">
       </div>
       <div style="margin-bottom:8px;">
         <input class="form-control" id="riderNote_${o.id}" placeholder="📝 หมายเหตุถึง rider (ถ้ามี)" style="font-size:0.88rem;">
@@ -1764,7 +1758,7 @@ function assignRider(orderId) {
     order.riderNote = riderNote;
     order.assignedBy = currentUser?.username || '';
     order.assignedAt = new Date().toLocaleString('th-TH');
-    if (assignDate) order.assignedDeliveryDate = assignDate; // อัปเดต assignedDeliveryDate ไม่แตะ deliveryDate
+    if (assignDate) order.deliveryDate = assignDate; // อัปเดตวันนัดส่ง
   }
   renderAssign();
   showToast(`กำลังมอบหมายงาน...`, 'info');
@@ -1822,12 +1816,11 @@ function loadOrdersForPayments() {
         riderNote: o.riderNote || '',
         customerName: o.customerName || '',
         customerPhone: o.customerPhone || '',
-        originalDeliveryDate: o.deliveryDate ? (typeof o.deliveryDate === 'string' ? o.deliveryDate.split('T')[0] : (() => { try { return new Date(o.deliveryDate).toISOString().split('T')[0]; } catch(e) { return ''; } })()) : '',
-        assignedDeliveryDate: (() => {
-          const d = o.assignedDeliveryDate;
-          if (!d) return '';
+        originalDeliveryDate: (() => {
+          const d = o.originalDeliveryDate;
+          if (!d) return '';  // ถ้าไม่มีให้ว่าง ไม่ fallback ไปใช้ raw deliveryDate
           if (typeof d === 'string') return d.split('T')[0];
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return ''; }
+          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
         })(),
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
@@ -1953,7 +1946,7 @@ function setRiderDate(daysOffset) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   document.getElementById('riderDateFilter').value = `${yyyy}-${mm}-${dd}`;
-  loadOrdersForRider(); // โหลดใหม่จาก GAS ทุกครั้งที่เปลี่ยนวัน
+  renderRiderPage();
 }
 
 function loadUsers() {
@@ -1976,9 +1969,6 @@ function loadUsers() {
 
 function loadOrdersForRider() {
   if (!currentUser?.token) return;
-  // แสดง loading ขณะโหลด
-  const countEl = document.getElementById('riderDeliveryCount');
-  if (countEl) countEl.textContent = 'กำลังโหลด...';
   const url = `${GAS_URL}?action=getOrders&token=${encodeURIComponent(currentUser.token)}`;
   fetch(url)
     .then(r => r.json())
@@ -1995,13 +1985,8 @@ function loadOrdersForRider() {
           const d = o.deliveryDate;
           if (!d) return '';
           if (typeof d === 'string') return d.split('T')[0];
+          // กรณี GAS ส่งกลับเป็น Date object หรือ number (milliseconds)
           try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
-        })(),
-        assignedDeliveryDate: (() => {
-          const d = o.assignedDeliveryDate;
-          if (!d) return '';
-          if (typeof d === 'string') return d.split('T')[0];
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return ''; }
         })(),
         deliveryMethod: o.deliveryMethod,
         address: o.address,
@@ -2032,9 +2017,7 @@ function renderRiderPage() {
 
   // กรองเฉพาะออเดอร์ที่ assign มาให้ rider นี้ โดยเช็ค riderId และวันส่ง
   const deliveries = DB.orders.filter(o => {
-    // ใช้ assignedDeliveryDate ถ้า admin กำหนด ไม่งั้นใช้ deliveryDate (วันที่ลูกค้าเลือก)
-    const effectiveDate = o.assignedDeliveryDate || o.deliveryDate || '';
-    const orderDate = effectiveDate.split('T')[0];
+    const orderDate = (o.deliveryDate || '').split('T')[0];
     const matchRider = !o.riderId || o.riderId === currentUser.username;
     return o.deliveryMethod === 'delivery' &&
       orderDate === selectedDate &&
@@ -2079,7 +2062,7 @@ function renderRiderPage() {
       <div class="customer-info">
         👤 <strong>${o.customer}</strong><br>
         📞 <a href="tel:${o.phone}" style="color:var(--primary);">${o.phone}</a><br>
-        📅 ส่งวันที่ <strong>${o.assignedDeliveryDate || o.originalDeliveryDate || '-'}</strong>${o.assignedDeliveryDate && o.assignedDeliveryDate !== o.originalDeliveryDate ? ` <span style="font-size:0.78rem;color:var(--text-muted);">(ลูกค้านัด: ${o.originalDeliveryDate})</span>` : ''}<br>
+        📅 ส่งวันที่ ${o.deliveryDate ? o.deliveryDate.split('T')[0] : '-'}<br>
         📍 ${o.address || '-'}
         ${o.riderNote ? `<br><span style="color:var(--primary-dark);font-weight:600;">📝 ${o.riderNote}</span>` : ''}
       </div>
