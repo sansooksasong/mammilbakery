@@ -833,6 +833,20 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzESgXDyTA8t8syvP5rGaULxHfqShO_LBxceeJZ3xdg0qg7yhMkNx0k87fo_JXoxO9T/exec';
 
 // =========================================
+// HELPER: แปลง Date object/string เป็น YYYY-MM-DD โดยใช้ local timezone (ไม่ใช่ UTC)
+// แก้ปัญหา toISOString() ที่แปลงเป็น UTC ทำให้วันที่เลื่อนไป -1 วันใน timezone UTC+7
+// =========================================
+function toLocalDateStr(d) {
+  if (!d) return '';
+  const date = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(date.getTime())) return typeof d === 'string' ? d.split('T')[0] : String(d);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// =========================================
 // DATA STORE (Mock - Replace with GAS calls)
 // =========================================
 const DB = {
@@ -1126,7 +1140,7 @@ function renderCheckout() {
   document.getElementById('checkoutTotal').textContent = `฿${subtotal.toLocaleString()}`;
 
   // Set min date
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr(new Date());
   document.getElementById('deliveryDate').min = today;
   document.getElementById('deliveryDate').value = today;
 }
@@ -1420,7 +1434,7 @@ function loadOrders() {
           if (!d) return '';
           if (typeof d === 'string') return d.split('T')[0];
           // กรณี GAS ส่งกลับเป็น Date object หรือ number (milliseconds)
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+          try { return toLocalDateStr(d); } catch(e) { return String(d); }
         })(),
         deliveryMethod: o.deliveryMethod,
         address: o.address,
@@ -1441,7 +1455,7 @@ function loadOrders() {
           const d = o.originalDeliveryDate;
           if (!d) return '';  // ถ้าไม่มีให้ว่าง ไม่ fallback ไปใช้ raw deliveryDate (อาจเป็น Date object)
           if (typeof d === 'string') return d.split('T')[0];
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+          try { return toLocalDateStr(d); } catch(e) { return String(d); }
         })(),
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
@@ -1665,7 +1679,7 @@ function deleteProduct(id) {
 
 // PRODUCTION PLAN
 function renderProduction() {
-  const date = document.getElementById('prodDate')?.value || new Date().toISOString().split('T')[0];
+  const date = document.getElementById('prodDate')?.value || toLocalDateStr(new Date());
   const orders = DB.orders.filter(o => o.deliveryDate === date && ['paid','production'].includes(o.status));
   const itemSums = {};
   orders.forEach(o => o.items.forEach(i => { itemSums[i.name] = (itemSums[i.name] || 0) + i.qty; }));
@@ -1820,7 +1834,7 @@ function loadOrdersForPayments() {
           const d = o.originalDeliveryDate;
           if (!d) return '';  // ถ้าไม่มีให้ว่าง ไม่ fallback ไปใช้ raw deliveryDate
           if (typeof d === 'string') return d.split('T')[0];
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+          try { return toLocalDateStr(d); } catch(e) { return String(d); }
         })(),
         items: Array.isArray(o.items) ? o.items.map(i => ({
           id: i.productId || i.id,
@@ -1986,7 +2000,7 @@ function loadOrdersForRider() {
           if (!d) return '';
           if (typeof d === 'string') return d.split('T')[0];
           // กรณี GAS ส่งกลับเป็น Date object หรือ number (milliseconds)
-          try { return new Date(d).toISOString().split('T')[0]; } catch(e) { return String(d); }
+          try { return toLocalDateStr(d); } catch(e) { return String(d); }
         })(),
         deliveryMethod: o.deliveryMethod,
         address: o.address,
@@ -2434,7 +2448,7 @@ function showToast(msg, type = 'success') {
 // =========================================
 document.addEventListener('DOMContentLoaded', () => {
   // Set default production date
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr(new Date());
   const pd = document.getElementById('prodDate');
   if (pd) pd.value = today;
 
